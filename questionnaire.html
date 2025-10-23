@@ -1,0 +1,1079 @@
+<!--
+Version: 3.2.0
+Updated: 2025-10-24
+Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
+Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
+Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS specificity issue
+                 - Root cause: .loading-screen and .error-screen (display: flex) were overriding
+                   .hidden (display: none) because they appeared later in the CSS
+                 - This caused all three screens to be visible even with .hidden class applied
+                 - Comprehensive console logging helped identify the exact issue
+         v3.1.2 - DEBUG: Added comprehensive console logging to diagnose multi-screen visibility issue
+                 - Added logScreenStates() helper to track visibility of all three screens
+                 - Added step-by-step logging in loadQuestionnaireData() execution
+                 - Enhanced hideLoadingScreen() and showErrorScreen() with detailed logs
+                 - Logs show: URL, QR code ID, data fetch steps, screen state transitions, errors
+         v3.1.1 - CRITICAL FIX: Fixed bug where loading/error/content screens were all visible simultaneously
+                 - Added display:none to content-container initial state (was only using opacity:0)
+                 - Enhanced state management to ensure mutually exclusive screen visibility
+                 - Updated hideLoadingScreen() to explicitly hide error screen
+                 - Updated showErrorScreen() to explicitly hide content container
+         v3.1 - Enhanced loading and error handling with custom messages and animations
+               - Loading text: "野百灵正在赶来的路上" with pulse animation
+               - Error text: "野百灵迷路了..." with shake animation
+               - Added specific error messages for different error types
+               - Improved loading spinner with glow effects and smoother animations
+               - Added technical error details display for debugging
+         v3.0 - Added support for different question types (multiple_choice, text_input) with dynamic rendering
+         v2.1 - Fixed loading flash issue, added loading screen with spinner
+         v2.0 - Added Supabase integration, URL parameter parsing, dynamic questionnaire loading
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>餐厅问卷 | Restaurant Questionnaire</title>
+
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: url('background.png') center/cover no-repeat fixed;
+            background-color: #1e3a5f;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Restaurant Header */
+        .restaurant-header {
+            padding: 32px 24px 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.15);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .restaurant-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.95);
+            letter-spacing: 2px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .restaurant-subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            letter-spacing: 1px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            padding: 24px 24px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .progress-dots {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .progress-dot.active {
+            background: rgba(255, 255, 255, 0.95);
+            transform: scale(1.2);
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        /* Question Screen */
+        .screen {
+            display: none;
+            padding: 32px 24px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .question-number {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .question-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Option Buttons (Multiple Choice) */
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .option-button {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
+            padding: 20px 24px;
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.95);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            font-weight: 500;
+            min-height: 64px;
+            display: flex;
+            align-items: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .option-button:active {
+            transform: scale(0.98);
+        }
+
+        .option-button:hover {
+            background: rgba(255, 255, 255, 0.4);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .option-button.selected {
+            background: rgba(255, 255, 255, 0.5);
+            border-color: rgba(255, 255, 255, 0.8);
+            color: white;
+        }
+
+        /* Text Input */
+        .text-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .text-input {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
+            padding: 20px 24px;
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.95);
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            transition: all 0.3s ease;
+        }
+
+        .text-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .text-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.4);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Navigation Buttons */
+        .navigation {
+            padding: 0 24px 32px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .nav-button {
+            flex: 1;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .nav-button.back {
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .nav-button.back:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-button.next {
+            background: rgba(255, 255, 255, 0.4);
+            color: white;
+        }
+
+        .nav-button.next:disabled {
+            background: rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.4);
+            cursor: not-allowed;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-button.next:not(:disabled):active {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Thank You Screen */
+        .thank-you {
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .thank-you-icon {
+            font-size: 72px;
+            margin-bottom: 24px;
+        }
+
+        .thank-you-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 12px;
+        }
+
+        .thank-you-message {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.6;
+        }
+
+        /* Hide elements - !important needed to override .loading-screen and .error-screen */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 64px 24px;
+            min-height: 400px;
+        }
+
+        .loading-spinner {
+            width: 64px;
+            height: 64px;
+            border: 5px solid rgba(255, 255, 255, 0.2);
+            border-top-color: rgba(255, 255, 255, 0.95);
+            border-right-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            animation: spin 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+            margin-bottom: 32px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 20px;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 600;
+            margin-bottom: 12px;
+            animation: pulse 2s ease-in-out infinite;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.95;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.02);
+            }
+        }
+
+        .loading-subtext {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            animation: dotPulse 1.5s infinite;
+        }
+
+        @keyframes dotPulse {
+            0%, 20%, 100% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Error Screen */
+        .error-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 64px 24px;
+            min-height: 400px;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+            animation: errorShake 0.5s ease-in-out;
+            filter: drop-shadow(0 4px 12px rgba(255, 255, 255, 0.2));
+        }
+
+        @keyframes errorShake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+        }
+
+        .error-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-message {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.8;
+            max-width: 360px;
+            animation: fadeInUp 0.6s ease-out 0.2s backwards;
+        }
+
+        .error-details {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Courier New', monospace;
+            max-width: 360px;
+            word-break: break-word;
+        }
+
+        /* Content Container - Initially Hidden */
+        .content-container {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .content-container.loaded {
+            display: block;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading Screen -->
+        <div class="loading-screen" id="loading-screen">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">野百灵正在赶来的路上</div>
+            <div class="loading-subtext">Loading...</div>
+        </div>
+
+        <!-- Error Screen -->
+        <div class="error-screen hidden" id="error-screen">
+            <div class="error-icon">🤔</div>
+            <div class="error-title">野百灵迷路了...</div>
+            <div class="error-message" id="error-message">
+                无法加载问卷，请稍后重试。<br>
+                Unable to load questionnaire. Please try again later.
+            </div>
+            <div class="error-details hidden" id="error-details"></div>
+        </div>
+
+        <!-- Content Container (Initially Hidden) -->
+        <div class="content-container" id="content-container">
+            <!-- Restaurant Header -->
+            <div class="restaurant-header">
+                <div class="restaurant-name">野百灵·贵州酸汤</div>
+                <div class="restaurant-subtitle">客户满意度调查</div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-dots">
+                    <div class="progress-dot active" data-step="1"></div>
+                    <div class="progress-dot" data-step="2"></div>
+                    <div class="progress-dot" data-step="3"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="current-step">1</span> / <span id="total-steps">3</span>
+                </div>
+            </div>
+
+            <!-- Question 1 -->
+            <div class="screen active" data-question="1">
+                <div class="question-number">Question 1</div>
+                <div class="question-text">How would you rate your overall dining experience?</div>
+                <div class="options">
+                    <button class="option-button" data-value="excellent">😄 Excellent</button>
+                    <button class="option-button" data-value="good">🙂 Good</button>
+                    <button class="option-button" data-value="average">😐 Average</button>
+                    <button class="option-button" data-value="poor">😞 Poor</button>
+                </div>
+            </div>
+
+            <!-- Question 2 -->
+            <div class="screen" data-question="2">
+                <div class="question-number">Question 2</div>
+                <div class="question-text">How satisfied are you with the food quality?</div>
+                <div class="options">
+                    <button class="option-button" data-value="very-satisfied">⭐⭐⭐⭐⭐ Very Satisfied</button>
+                    <button class="option-button" data-value="satisfied">⭐⭐⭐⭐ Satisfied</button>
+                    <button class="option-button" data-value="neutral">⭐⭐⭐ Neutral</button>
+                    <button class="option-button" data-value="dissatisfied">⭐⭐ Dissatisfied</button>
+                    <button class="option-button" data-value="very-dissatisfied">⭐ Very Dissatisfied</button>
+                </div>
+            </div>
+
+            <!-- Question 3 -->
+            <div class="screen" data-question="3">
+                <div class="question-number">Question 3</div>
+                <div class="question-text">Would you recommend this restaurant to friends?</div>
+                <div class="options">
+                    <button class="option-button" data-value="definitely">💯 Definitely</button>
+                    <button class="option-button" data-value="probably">👍 Probably</button>
+                    <button class="option-button" data-value="not-sure">🤔 Not Sure</button>
+                    <button class="option-button" data-value="probably-not">👎 Probably Not</button>
+                </div>
+            </div>
+
+            <!-- Thank You Screen -->
+            <div class="screen thank-you hidden" id="thank-you-screen">
+                <div class="thank-you-icon">🎉</div>
+                <div class="thank-you-title">Thank You!</div>
+                <div class="thank-you-message">
+                    We appreciate your feedback and look forward to serving you again soon.
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="navigation" id="navigation">
+                <button class="nav-button back hidden" id="back-button">Back</button>
+                <button class="nav-button next" id="next-button" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://wdpeoyugsxqnpwwtkqsl.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkcGVveXVnc3hxbnB3d3RrcXNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxNDgwNzgsImV4cCI6MjA1OTcyNDA3OH0.9bUpuZCOZxDSH3KsIu6FwWZyAvnV5xPJGNpO3luxWOE';
+
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const qrcodeId = urlParams.get('qrcode');
+
+        console.log('=== PAGE INITIALIZATION ===');
+        console.log('URL:', window.location.href);
+        console.log('QR Code ID from URL:', qrcodeId);
+        console.log('Page load timestamp:', new Date().toISOString());
+
+        // Global state
+        let questionnaireData = null;
+        let selectedQuestionnaire = null;
+        let selectedAssignment = null;
+        let tableInfo = null;
+        let restaurantInfo = null;
+        let questions = [];
+        let currentStep = 1;
+        let totalSteps = 0;
+        const answers = {};
+
+        // Helper function to log screen visibility states
+        function logScreenStates(context) {
+            const loadingScreen = document.getElementById('loading-screen');
+            const errorScreen = document.getElementById('error-screen');
+            const contentContainer = document.getElementById('content-container');
+
+            console.log(`\n--- Screen States (${context}) ---`);
+            console.log('Loading Screen:', {
+                hasHiddenClass: loadingScreen.classList.contains('hidden'),
+                display: window.getComputedStyle(loadingScreen).display,
+                visible: window.getComputedStyle(loadingScreen).display !== 'none'
+            });
+            console.log('Error Screen:', {
+                hasHiddenClass: errorScreen.classList.contains('hidden'),
+                display: window.getComputedStyle(errorScreen).display,
+                visible: window.getComputedStyle(errorScreen).display !== 'none'
+            });
+            console.log('Content Container:', {
+                hasLoadedClass: contentContainer.classList.contains('loaded'),
+                display: window.getComputedStyle(contentContainer).display,
+                opacity: window.getComputedStyle(contentContainer).opacity,
+                visible: window.getComputedStyle(contentContainer).display !== 'none'
+            });
+            console.log('---\n');
+        }
+
+        // Load questionnaire data from database
+        async function loadQuestionnaireData() {
+            console.log('\n=== LOAD QUESTIONNAIRE START ===');
+            logScreenStates('Before loading');
+
+            try {
+                if (!qrcodeId) {
+                    console.error('ERROR: No QR code ID in URL');
+                    throw new Error('No QR code ID provided in URL');
+                }
+
+                console.log('Step 1: Fetching QR code data for ID:', qrcodeId);
+
+                // Fetch QR code and table information
+                const { data: qrCodeData, error: qrError } = await supabase
+                    .from('echo_qrcode')
+                    .select('*, echo_table(*)')
+                    .eq('id', qrcodeId)
+                    .single();
+
+                if (qrError) {
+                    console.error('ERROR: QR code fetch failed:', qrError);
+                    throw qrError;
+                }
+                if (!qrCodeData) {
+                    console.error('ERROR: QR code not found in database');
+                    throw new Error('QR code not found');
+                }
+
+                console.log('Step 2: QR code data received:', qrCodeData);
+                tableInfo = qrCodeData.echo_table;
+                console.log('Table info:', tableInfo);
+
+                // Fetch restaurant information
+                console.log('Step 3: Fetching restaurant info for ID:', tableInfo.restaurant_id);
+                const { data: restaurant, error: restError } = await supabase
+                    .from('roleplay_restaurants')
+                    .select('*')
+                    .eq('id', tableInfo.restaurant_id)
+                    .single();
+
+                if (restError) {
+                    console.error('ERROR: Restaurant fetch failed:', restError);
+                    throw restError;
+                }
+                restaurantInfo = restaurant;
+                console.log('Restaurant info:', restaurantInfo);
+
+                // Fetch active questionnaires for this QR code
+                console.log('Step 4: Fetching active questionnaires for QR code:', qrcodeId);
+                const { data: assignments, error: assignError } = await supabase
+                    .from('echo_qrcode_questionnaire')
+                    .select('*, echo_questionnaire(*)')
+                    .eq('qrcode_id', qrcodeId)
+                    .eq('is_active', true)
+                    .eq('echo_questionnaire.is_active', true);
+
+                if (assignError) {
+                    console.error('ERROR: Questionnaire assignment fetch failed:', assignError);
+                    throw assignError;
+                }
+                console.log('Assignments received:', assignments);
+
+                if (!assignments || assignments.length === 0) {
+                    console.error('ERROR: No active questionnaires found');
+                    throw new Error('No active questionnaires found for this QR code');
+                }
+
+                // Select questionnaire (weighted random if multiple)
+                console.log('Step 5: Selecting questionnaire from', assignments.length, 'assignments');
+                selectedAssignment = selectWeightedQuestionnaire(assignments);
+                selectedQuestionnaire = selectedAssignment.echo_questionnaire;
+
+                console.log('Selected questionnaire:', selectedQuestionnaire);
+                console.log('Selected assignment:', selectedAssignment);
+
+                // Render the questionnaire
+                console.log('Step 6: Rendering questionnaire...');
+                renderQuestionnaire();
+
+                // Hide loading screen and show content
+                console.log('Step 7: Hiding loading screen and showing content...');
+                hideLoadingScreen();
+
+                console.log('=== LOAD QUESTIONNAIRE SUCCESS ===\n');
+                logScreenStates('After successful load');
+
+            } catch (error) {
+                console.error('\n=== LOAD QUESTIONNAIRE FAILED ===');
+                console.error('Error type:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                console.log('Showing error screen...');
+                showErrorScreen(error.message);
+                logScreenStates('After error shown');
+                console.log('=== END ERROR HANDLING ===\n');
+            }
+        }
+
+        // Select questionnaire using weighted random selection (for AB testing)
+        function selectWeightedQuestionnaire(assignments) {
+            if (assignments.length === 1) {
+                return assignments[0];
+            }
+
+            // Calculate total weight
+            const totalWeight = assignments.reduce((sum, a) => sum + (a.weight || 100), 0);
+
+            // Random selection based on weight
+            let random = Math.random() * totalWeight;
+            for (const assignment of assignments) {
+                random -= (assignment.weight || 100);
+                if (random <= 0) {
+                    return assignment;
+                }
+            }
+
+            return assignments[0]; // Fallback
+        }
+
+        // Hide loading screen and show content with smooth transition
+        function hideLoadingScreen() {
+            console.log('\n>>> hideLoadingScreen() called');
+            const loadingScreen = document.getElementById('loading-screen');
+            const errorScreen = document.getElementById('error-screen');
+            const contentContainer = document.getElementById('content-container');
+
+            logScreenStates('Before hiding loading');
+
+            // Ensure only content is visible
+            console.log('Action: Adding "hidden" class to loading screen');
+            loadingScreen.classList.add('hidden');
+
+            console.log('Action: Adding "hidden" class to error screen');
+            errorScreen.classList.add('hidden');
+
+            console.log('Action: Adding "loaded" class to content container');
+            // Show content with fade-in effect
+            contentContainer.classList.add('loaded');
+
+            logScreenStates('After hiding loading');
+            console.log('<<< hideLoadingScreen() complete\n');
+        }
+
+        // Show error screen with error message
+        function showErrorScreen(errorMessage) {
+            console.log('\n>>> showErrorScreen() called with message:', errorMessage);
+            const loadingScreen = document.getElementById('loading-screen');
+            const errorScreen = document.getElementById('error-screen');
+            const contentContainer = document.getElementById('content-container');
+            const errorMessageEl = document.getElementById('error-message');
+            const errorDetailsEl = document.getElementById('error-details');
+
+            logScreenStates('Before showing error');
+
+            // Ensure only error screen is visible
+            console.log('Action: Adding "hidden" class to loading screen');
+            loadingScreen.classList.add('hidden');
+
+            console.log('Action: Removing "loaded" class from content container');
+            contentContainer.classList.remove('loaded');
+
+            // Determine user-friendly message based on error type
+            let userMessage = '';
+            let technicalDetails = '';
+
+            if (errorMessage.includes('No QR code ID')) {
+                userMessage = '二维码参数缺失，请使用有效的二维码扫描。<br>QR code parameter is missing. Please scan a valid QR code.';
+                technicalDetails = 'Error: Missing QR code ID in URL';
+            } else if (errorMessage.includes('QR code not found')) {
+                userMessage = '未找到对应的二维码信息，请联系餐厅工作人员。<br>QR code not found. Please contact restaurant staff.';
+                technicalDetails = 'Error: QR code ID not in database';
+            } else if (errorMessage.includes('No active questionnaires')) {
+                userMessage = '此二维码暂无可用问卷，请稍后再试。<br>No active questionnaires available. Please try again later.';
+                technicalDetails = 'Error: No active questionnaires assigned to this QR code';
+            } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+                userMessage = '网络连接失败，请检查网络后重试。<br>Network connection failed. Please check your connection.';
+                technicalDetails = `Error: ${errorMessage}`;
+            } else {
+                userMessage = '加载问卷时出现问题，请稍后重试或联系工作人员。<br>Error loading questionnaire. Please try again or contact staff.';
+                technicalDetails = `Error: ${errorMessage}`;
+            }
+
+            // Update error message
+            errorMessageEl.innerHTML = userMessage;
+
+            // Show technical details for debugging
+            if (technicalDetails) {
+                errorDetailsEl.textContent = technicalDetails;
+                errorDetailsEl.classList.remove('hidden');
+            }
+
+            console.log('Action: Removing "hidden" class from error screen');
+            // Show error screen
+            errorScreen.classList.remove('hidden');
+
+            logScreenStates('After showing error');
+            console.log('<<< showErrorScreen() complete\n');
+        }
+
+        // Render questionnaire dynamically
+        function renderQuestionnaire() {
+            // Update restaurant name and title
+            document.querySelector('.restaurant-name').textContent = restaurantInfo.name || '餐厅';
+            document.querySelector('.restaurant-subtitle').textContent = selectedQuestionnaire.title || '客户满意度调查';
+
+            // Parse questions - use JSONB field if available, fallback to legacy fields
+            if (selectedQuestionnaire.questions && selectedQuestionnaire.questions.length > 0) {
+                questions = selectedQuestionnaire.questions.sort((a, b) => a.order - b.order);
+            } else {
+                // Fallback to legacy format
+                questions = [
+                    { id: 'q1', text: selectedQuestionnaire.question_1, type: 'text_input', order: 1 },
+                    { id: 'q2', text: selectedQuestionnaire.question_2, type: 'text_input', order: 2 },
+                    { id: 'q3', text: selectedQuestionnaire.question_3, type: 'text_input', order: 3 },
+                ];
+            }
+
+            totalSteps = questions.length;
+
+            // Update total steps display
+            document.getElementById('total-steps').textContent = totalSteps;
+
+            // Generate progress dots
+            const progressDotsContainer = document.querySelector('.progress-dots');
+            progressDotsContainer.innerHTML = '';
+            for (let i = 1; i <= totalSteps; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot' + (i === 1 ? ' active' : '');
+                dot.dataset.step = i;
+                progressDotsContainer.appendChild(dot);
+            }
+
+            // Clear existing question screens
+            const contentContainer = document.getElementById('content-container');
+            const existingQuestions = contentContainer.querySelectorAll('.screen[data-question]');
+            existingQuestions.forEach(q => q.remove());
+
+            // Generate new question screens
+            questions.forEach((question, index) => {
+                const screen = createQuestionScreen(question, index);
+                // Insert before the thank-you screen
+                contentContainer.insertBefore(screen, document.getElementById('thank-you-screen'));
+            });
+
+            // Re-initialize event listeners for new buttons
+            initializeQuestionListeners();
+
+            console.log('Questionnaire rendered successfully with', questions.length, 'questions');
+        }
+
+        // Create a question screen element
+        function createQuestionScreen(question, index) {
+            const screen = document.createElement('div');
+            screen.className = 'screen' + (index === 0 ? ' active' : '');
+            screen.dataset.question = index + 1;
+            screen.dataset.questionId = question.id;
+
+            const questionNumber = document.createElement('div');
+            questionNumber.className = 'question-number';
+            questionNumber.textContent = `Question ${index + 1}`;
+
+            const questionText = document.createElement('div');
+            questionText.className = 'question-text';
+            questionText.textContent = question.text;
+
+            screen.appendChild(questionNumber);
+            screen.appendChild(questionText);
+
+            // Render based on question type
+            if (question.type === 'multiple_choice' && question.options) {
+                const optionsContainer = document.createElement('div');
+                optionsContainer.className = 'options';
+
+                question.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.className = 'option-button';
+                    button.dataset.value = option.value;
+                    button.textContent = option.label;
+                    optionsContainer.appendChild(button);
+                });
+
+                screen.appendChild(optionsContainer);
+            } else {
+                // Default to text input
+                const inputContainer = document.createElement('div');
+                inputContainer.className = 'text-input-container';
+
+                const textarea = document.createElement('textarea');
+                textarea.className = 'text-input';
+                textarea.placeholder = 'Type your answer here...';
+                textarea.dataset.questionId = question.id;
+                inputContainer.appendChild(textarea);
+
+                screen.appendChild(inputContainer);
+            }
+
+            return screen;
+        }
+
+        // Initialize event listeners for question elements
+        function initializeQuestionListeners() {
+            // Multiple choice buttons
+            document.querySelectorAll('.option-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const screen = this.closest('.screen');
+                    const questionId = screen.dataset.questionId;
+                    const value = this.dataset.value;
+
+                    // Remove selected class from all options in current question
+                    screen.querySelectorAll('.option-button').forEach(btn => {
+                        btn.classList.remove('selected');
+                    });
+
+                    // Add selected class to clicked option
+                    this.classList.add('selected');
+
+                    // Store answer
+                    answers[questionId] = value;
+
+                    // Enable next button
+                    document.getElementById('next-button').disabled = false;
+
+                    console.log('Answer recorded:', { questionId, value });
+                });
+            });
+
+            // Text inputs
+            document.querySelectorAll('.text-input').forEach(textarea => {
+                textarea.addEventListener('input', function() {
+                    const questionId = this.dataset.questionId;
+                    const value = this.value;
+
+                    // Store answer
+                    answers[questionId] = value;
+
+                    // Enable next button if not empty
+                    document.getElementById('next-button').disabled = value.trim() === '';
+
+                    console.log('Answer recorded:', { questionId, value });
+                });
+            });
+        }
+
+        // Update progress indicator
+        function updateProgress() {
+            document.getElementById('current-step').textContent = currentStep;
+
+            const dots = document.querySelectorAll('.progress-dot');
+            dots.forEach((dot, index) => {
+                if (index < currentStep) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+
+        // Show specific screen
+        function showScreen(step) {
+            const screens = document.querySelectorAll('.screen[data-question]');
+            screens.forEach((screen, index) => {
+                if (index + 1 === step) {
+                    screen.classList.add('active');
+                } else {
+                    screen.classList.remove('active');
+                }
+            });
+
+            const backButton = document.getElementById('back-button');
+            const nextButton = document.getElementById('next-button');
+
+            // Update back button visibility
+            if (step === 1) {
+                backButton.classList.add('hidden');
+            } else {
+                backButton.classList.remove('hidden');
+            }
+
+            // Update next button state
+            const currentQuestion = questions[step - 1];
+            const currentAnswer = answers[currentQuestion.id];
+            nextButton.disabled = !currentAnswer || currentAnswer.trim() === '';
+
+            // Update next button text
+            if (step === totalSteps) {
+                nextButton.textContent = 'Submit';
+            } else {
+                nextButton.textContent = 'Next';
+            }
+        }
+
+        // Handle next button click
+        document.addEventListener('DOMContentLoaded', function() {
+            const nextButton = document.getElementById('next-button');
+            const backButton = document.getElementById('back-button');
+
+            nextButton.addEventListener('click', function() {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    updateProgress();
+                    showScreen(currentStep);
+                } else {
+                    // Submit questionnaire
+                    submitQuestionnaire();
+                }
+            });
+
+            // Handle back button click
+            backButton.addEventListener('click', function() {
+                if (currentStep > 1) {
+                    currentStep--;
+                    updateProgress();
+                    showScreen(currentStep);
+                }
+            });
+        });
+
+        // Submit questionnaire and show thank you screen
+        async function submitQuestionnaire() {
+            try {
+                const submissionData = {
+                    qrcode_id: qrcodeId,
+                    table_id: tableInfo.id,
+                    questionnaire_id: selectedQuestionnaire.id,
+                    assignment_id: selectedAssignment.id,
+                    answers: answers, // New JSONB format
+                    // Legacy fields for backward compatibility (use first 3 answers)
+                    answer_1: answers[questions[0]?.id] || '',
+                    answer_2: answers[questions[1]?.id] || '',
+                    answer_3: answers[questions[2]?.id] || '',
+                    submitted_at: new Date().toISOString()
+                };
+
+                console.log('Submitting questionnaire:', submissionData);
+
+                // Submit to database
+                const { data, error } = await supabase
+                    .from('echo_answers')
+                    .insert(submissionData);
+
+                if (error) {
+                    throw error;
+                }
+
+                console.log('Questionnaire submitted successfully:', data);
+
+                // Show thank you screen
+                const screens = document.querySelectorAll('.screen');
+                screens.forEach(screen => screen.classList.remove('active'));
+
+                const thankYouScreen = document.getElementById('thank-you-screen');
+                thankYouScreen.classList.remove('hidden');
+                thankYouScreen.classList.add('active');
+
+                const progressContainer = document.querySelector('.progress-container');
+                progressContainer.classList.add('hidden');
+
+                document.getElementById('navigation').classList.add('hidden');
+
+            } catch (error) {
+                console.error('Error submitting questionnaire:', error);
+                alert('提交失败：' + error.message + '\n\nSubmission failed: ' + error.message);
+            }
+        }
+
+        // Log initial screen states on page load
+        console.log('\n=== INITIAL STATE (before any JavaScript execution) ===');
+        setTimeout(() => {
+            logScreenStates('Immediately after page load');
+        }, 0);
+
+        // Load questionnaire data from database on page load
+        console.log('Calling loadQuestionnaireData()...\n');
+        loadQuestionnaireData();
+    </script>
+</body>
+</html>
