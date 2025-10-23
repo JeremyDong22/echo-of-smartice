@@ -1,11 +1,22 @@
 <!--
-Version: 3.3.2
+Version: 3.6.0
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for better visual proportions
-                 - Container now has proper breathing room and background visibility
-                 - Improved layering effect with more visible background pattern
+Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales to fit viewport
+                 - Scrollable-content overflow changed to visible (no scrolling)
+                 - Ultra-compact font sizes: question text min 9px, options min 8px
+                 - Reduced all spacing minimums: gaps, padding, margins all use aggressive vh scaling
+                 - Container height remains 60vh but content now auto-adapts to fit
+                 - All elements guaranteed to display without scrolling
+         v3.5.0 - RESPONSIVE FONT SIZING: All text now uses clamp() for automatic adaptation
+                 - Container: 85% width, 60vh height with 20vh vertical margins
+                 - Font sizes adapt to viewport height to prevent scrolling
+                 - Question text: clamp(14px, 2.5vh, 20px)
+                 - Options: clamp(13px, 2vh, 16px) with responsive padding
+                 - All spacing uses vh units for proportional scaling
+         v3.4.0 - TESTING: 70% width with 24px all-sides padding for maximum background visibility
+                 - Removed all console.log debug statements for cleaner console
          v3.3.1 - Added proportional padding around glassmorphism container for better visual spacing
          v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser compatibility
                  - Fixed viewport height issues (100vh problem) by using dynamic viewport calculation
@@ -84,8 +95,8 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Increased padding for better visual proportions and background visibility */
-            padding: 20px 0;
+            /* Flexible padding: only horizontal for responsive width control */
+            padding: 0 24px;
             -webkit-font-smoothing: antialiased;
             /* Prevent scrolling on body */
             overflow: hidden;
@@ -93,19 +104,21 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
         }
 
         .container {
-            /* Use 90% width for better proportions and background visibility */
-            width: 90%;
-            max-width: 480px;
-            /* Use calc with custom property for dynamic height, subtract padding (20px * 2 = 40px) */
-            height: calc(var(--vh, 1vh) * 100 - 40px);
+            /* Testing: 85% width with 20vh vertical spacing */
+            width: 85%;
+            max-width: 420px;
+            /* Flexible vertical spacing using vh units (20vh top + 20vh bottom = 40vh total) */
+            margin: 20vh 0;
+            /* Adjusted height to account for margin (100vh - 40vh = 60vh) */
+            height: calc(var(--vh, 1vh) * 60);
             /* Fallback for older browsers */
-            height: calc(100vh - 40px);
+            height: 60vh;
             /* Support for webkit browsers */
             height: -webkit-fill-available;
             /* Modern dynamic viewport height */
-            height: calc(100dvh - 40px);
+            height: 60dvh;
             /* Limit maximum height to prevent overflow */
-            max-height: calc(var(--vh, 1vh) * 100 - 40px);
+            max-height: calc(var(--vh, 1vh) * 60);
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -122,51 +135,51 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
         /* Restaurant Header */
         .restaurant-header {
-            /* Reduced padding for mobile viewport */
-            padding: 20px 16px 16px;
+            /* Ultra-compact padding for no-scroll mode */
+            padding: clamp(4px, 1.5vh, 20px) clamp(6px, 1.5vh, 16px) clamp(3px, 1vh, 16px);
             text-align: center;
             background: rgba(255, 255, 255, 0.15);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            /* Prevent shrinking */
-            flex-shrink: 0;
+            /* Allow shrinking to fit content */
+            flex-shrink: 1;
         }
 
         .restaurant-name {
-            /* Slightly reduced font size for mobile */
-            font-size: 24px;
+            /* Ultra-compact font size */
+            font-size: clamp(10px, 2.5vh, 24px);
             font-weight: 700;
             color: rgba(255, 255, 255, 0.95);
-            letter-spacing: 1.5px;
-            line-height: 1.3;
-            margin-bottom: 6px;
+            letter-spacing: 1px;
+            line-height: 1.1;
+            margin-bottom: clamp(1px, 0.5vh, 6px);
         }
 
         .restaurant-subtitle {
-            font-size: 13px;
+            font-size: clamp(7px, 1.5vh, 13px);
             color: rgba(255, 255, 255, 0.7);
-            letter-spacing: 0.8px;
+            letter-spacing: 0.5px;
         }
 
         /* Progress Bar */
         .progress-container {
-            /* Reduced padding */
-            padding: 16px 16px 12px;
+            /* Ultra-compact padding for no-scroll mode */
+            padding: clamp(3px, 1.5vh, 16px) clamp(6px, 1.5vh, 16px) clamp(2px, 1vh, 12px);
             background: rgba(255, 255, 255, 0.1);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            /* Prevent shrinking */
-            flex-shrink: 0;
+            /* Allow shrinking to fit content */
+            flex-shrink: 1;
         }
 
         .progress-dots {
             display: flex;
             justify-content: center;
-            gap: 12px;
-            margin-bottom: 8px;
+            gap: clamp(6px, 1.5vh, 12px);
+            margin-bottom: clamp(3px, 1vh, 8px);
         }
 
         .progress-dot {
-            width: 12px;
-            height: 12px;
+            width: clamp(8px, 1.5vh, 12px);
+            height: clamp(8px, 1.5vh, 12px);
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.4);
             transition: all 0.3s ease;
@@ -174,36 +187,41 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
         .progress-dot.active {
             background: rgba(255, 255, 255, 0.95);
-            transform: scale(1.2);
+            transform: scale(1.1);
         }
 
         .progress-text {
             text-align: center;
-            font-size: 14px;
+            font-size: clamp(9px, 1.8vh, 14px);
             color: rgba(255, 255, 255, 0.9);
             font-weight: 500;
         }
 
-        /* Scrollable content area */
+        /* Scrollable content area - NO SCROLL MODE */
         .scrollable-content {
             flex: 1;
-            overflow-y: auto;
+            overflow-y: hidden;
             overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            /* Add some bottom padding for better scrolling experience */
-            padding-bottom: 20px;
+            /* No scrolling - content scales to fit */
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         /* Question Screen */
         .screen {
             display: none;
-            /* Reduced padding for mobile */
-            padding: 20px 16px;
+            /* Ultra-compact padding for no-scroll mode */
+            padding: clamp(4px, 1.5vh, 20px) clamp(6px, 1.5vh, 16px);
             animation: fadeIn 0.4s ease;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .screen.active {
-            display: block;
+            display: flex;
+            flex-direction: column;
         }
 
         @keyframes fadeIn {
@@ -219,29 +237,33 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
         .question-number {
             color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
+            /* Ultra-compact font size */
+            font-size: clamp(6px, 1.5vh, 14px);
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+            margin-bottom: clamp(2px, 1vh, 12px);
         }
 
         .question-text {
-            /* Reduced font size for mobile */
-            font-size: 20px;
+            /* Ultra-compact minimum font size - adapts to container height */
+            font-size: clamp(9px, 2vh, 20px);
             font-weight: 700;
             color: rgba(255, 255, 255, 0.95);
-            /* Reduced margin */
-            margin-bottom: 24px;
-            line-height: 1.4;
+            /* Smaller minimum margin */
+            margin-bottom: clamp(4px, 1.5vh, 24px);
+            line-height: 1.15;
+            /* Ensure text wraps properly */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         /* Option Buttons (Multiple Choice) */
         .options {
             display: flex;
             flex-direction: column;
-            /* Reduced gap */
-            gap: 12px;
+            /* Ultra-compact gap for no-scroll mode */
+            gap: clamp(2px, 1vh, 12px);
         }
 
         .option-button {
@@ -249,21 +271,24 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 16px;
-            /* Reduced padding */
-            padding: 16px 20px;
-            /* Reduced font size */
-            font-size: 16px;
+            border-radius: clamp(8px, 2vh, 16px);
+            /* Ultra-compact padding for no-scroll mode */
+            padding: clamp(4px, 1.5vh, 16px) clamp(8px, 2vh, 20px);
+            /* Ultra-compact minimum font size */
+            font-size: clamp(8px, 1.8vh, 16px);
             color: rgba(255, 255, 255, 0.95);
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: left;
             font-weight: 500;
-            /* Reduced min-height */
-            min-height: 56px;
+            /* Ultra-compact minimum height */
+            min-height: clamp(24px, 4vh, 56px);
             display: flex;
             align-items: center;
             -webkit-tap-highlight-color: transparent;
+            /* Ensure text wraps in buttons */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .option-button:active {
@@ -315,22 +340,24 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
         /* Navigation Buttons */
         .navigation {
-            /* Reduced padding for mobile */
-            padding: 16px 16px 20px;
+            /* Ultra-compact padding for no-scroll mode */
+            padding: clamp(4px, 1.5vh, 16px) clamp(6px, 1.5vh, 16px) clamp(6px, 2vh, 20px);
             display: flex;
-            gap: 12px;
-            /* Prevent shrinking */
-            flex-shrink: 0;
+            gap: clamp(4px, 1vh, 12px);
+            /* Allow shrinking to fit content */
+            flex-shrink: 1;
             background: rgba(255, 255, 255, 0.05);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .nav-button {
             flex: 1;
-            padding: 16px;
+            /* Ultra-compact padding */
+            padding: clamp(6px, 1.5vh, 16px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 12px;
-            font-size: 16px;
+            border-radius: clamp(8px, 2vh, 12px);
+            /* Ultra-compact font size */
+            font-size: clamp(10px, 1.8vh, 16px);
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -551,17 +578,14 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
         /* Add media query for smaller devices */
         @media screen and (max-height: 600px) {
-            /* Reduce body padding for smaller screens */
+            /* Reduce horizontal padding for smaller screens */
             body {
-                padding: 16px 0;
+                padding: 0 16px;
             }
 
             .container {
-                width: 92%;
-                height: calc(var(--vh, 1vh) * 100 - 32px);
-                height: calc(100vh - 32px);
-                height: calc(100dvh - 32px);
-                max-height: calc(var(--vh, 1vh) * 100 - 32px);
+                width: 75%;
+                /* No height adjustment needed - fully flexible */
             }
 
             .restaurant-header {
@@ -749,11 +773,6 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
         const urlParams = new URLSearchParams(window.location.search);
         const qrcodeId = urlParams.get('qrcode');
 
-        console.log('=== PAGE INITIALIZATION ===');
-        console.log('URL:', window.location.href);
-        console.log('QR Code ID from URL:', qrcodeId);
-        console.log('Page load timestamp:', new Date().toISOString());
-
         // Global state
         let questionnaireData = null;
         let selectedQuestionnaire = null;
@@ -765,44 +784,13 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
         let totalSteps = 0;
         const answers = {};
 
-        // Helper function to log screen visibility states
-        function logScreenStates(context) {
-            const loadingScreen = document.getElementById('loading-screen');
-            const errorScreen = document.getElementById('error-screen');
-            const contentContainer = document.getElementById('content-container');
-
-            console.log(`\n--- Screen States (${context}) ---`);
-            console.log('Loading Screen:', {
-                hasHiddenClass: loadingScreen.classList.contains('hidden'),
-                display: window.getComputedStyle(loadingScreen).display,
-                visible: window.getComputedStyle(loadingScreen).display !== 'none'
-            });
-            console.log('Error Screen:', {
-                hasHiddenClass: errorScreen.classList.contains('hidden'),
-                display: window.getComputedStyle(errorScreen).display,
-                visible: window.getComputedStyle(errorScreen).display !== 'none'
-            });
-            console.log('Content Container:', {
-                hasLoadedClass: contentContainer.classList.contains('loaded'),
-                display: window.getComputedStyle(contentContainer).display,
-                opacity: window.getComputedStyle(contentContainer).opacity,
-                visible: window.getComputedStyle(contentContainer).display !== 'none'
-            });
-            console.log('---\n');
-        }
 
         // Load questionnaire data from database
         async function loadQuestionnaireData() {
-            console.log('\n=== LOAD QUESTIONNAIRE START ===');
-            logScreenStates('Before loading');
-
             try {
                 if (!qrcodeId) {
-                    console.error('ERROR: No QR code ID in URL');
                     throw new Error('No QR code ID provided in URL');
                 }
-
-                console.log('Step 1: Fetching QR code data for ID:', qrcodeId);
 
                 // Fetch QR code and table information
                 const { data: qrCodeData, error: qrError } = await supabase
@@ -811,36 +799,22 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
                     .eq('id', qrcodeId)
                     .single();
 
-                if (qrError) {
-                    console.error('ERROR: QR code fetch failed:', qrError);
-                    throw qrError;
-                }
-                if (!qrCodeData) {
-                    console.error('ERROR: QR code not found in database');
-                    throw new Error('QR code not found');
-                }
+                if (qrError) throw qrError;
+                if (!qrCodeData) throw new Error('QR code not found');
 
-                console.log('Step 2: QR code data received:', qrCodeData);
                 tableInfo = qrCodeData.echo_table;
-                console.log('Table info:', tableInfo);
 
                 // Fetch restaurant information
-                console.log('Step 3: Fetching restaurant info for ID:', tableInfo.restaurant_id);
                 const { data: restaurant, error: restError } = await supabase
                     .from('roleplay_restaurants')
                     .select('*')
                     .eq('id', tableInfo.restaurant_id)
                     .single();
 
-                if (restError) {
-                    console.error('ERROR: Restaurant fetch failed:', restError);
-                    throw restError;
-                }
+                if (restError) throw restError;
                 restaurantInfo = restaurant;
-                console.log('Restaurant info:', restaurantInfo);
 
                 // Fetch active questionnaires for this QR code
-                console.log('Step 4: Fetching active questionnaires for QR code:', qrcodeId);
                 const { data: assignments, error: assignError } = await supabase
                     .from('echo_qrcode_questionnaire')
                     .select('*, echo_questionnaire(*)')
@@ -848,45 +822,24 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
                     .eq('is_active', true)
                     .eq('echo_questionnaire.is_active', true);
 
-                if (assignError) {
-                    console.error('ERROR: Questionnaire assignment fetch failed:', assignError);
-                    throw assignError;
-                }
-                console.log('Assignments received:', assignments);
+                if (assignError) throw assignError;
 
                 if (!assignments || assignments.length === 0) {
-                    console.error('ERROR: No active questionnaires found');
                     throw new Error('No active questionnaires found for this QR code');
                 }
 
                 // Select questionnaire (weighted random if multiple)
-                console.log('Step 5: Selecting questionnaire from', assignments.length, 'assignments');
                 selectedAssignment = selectWeightedQuestionnaire(assignments);
                 selectedQuestionnaire = selectedAssignment.echo_questionnaire;
 
-                console.log('Selected questionnaire:', selectedQuestionnaire);
-                console.log('Selected assignment:', selectedAssignment);
-
                 // Render the questionnaire
-                console.log('Step 6: Rendering questionnaire...');
                 renderQuestionnaire();
 
                 // Hide loading screen and show content
-                console.log('Step 7: Hiding loading screen and showing content...');
                 hideLoadingScreen();
 
-                console.log('=== LOAD QUESTIONNAIRE SUCCESS ===\n');
-                logScreenStates('After successful load');
-
             } catch (error) {
-                console.error('\n=== LOAD QUESTIONNAIRE FAILED ===');
-                console.error('Error type:', error.name);
-                console.error('Error message:', error.message);
-                console.error('Error stack:', error.stack);
-                console.log('Showing error screen...');
                 showErrorScreen(error.message);
-                logScreenStates('After error shown');
-                console.log('=== END ERROR HANDLING ===\n');
             }
         }
 
@@ -913,44 +866,26 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
         // Hide loading screen and show content with smooth transition
         function hideLoadingScreen() {
-            console.log('\n>>> hideLoadingScreen() called');
             const loadingScreen = document.getElementById('loading-screen');
             const errorScreen = document.getElementById('error-screen');
             const contentContainer = document.getElementById('content-container');
 
-            logScreenStates('Before hiding loading');
-
             // Ensure only content is visible
-            console.log('Action: Adding "hidden" class to loading screen');
             loadingScreen.classList.add('hidden');
-
-            console.log('Action: Adding "hidden" class to error screen');
             errorScreen.classList.add('hidden');
-
-            console.log('Action: Adding "loaded" class to content container');
-            // Show content with fade-in effect
             contentContainer.classList.add('loaded');
-
-            logScreenStates('After hiding loading');
-            console.log('<<< hideLoadingScreen() complete\n');
         }
 
         // Show error screen with error message
         function showErrorScreen(errorMessage) {
-            console.log('\n>>> showErrorScreen() called with message:', errorMessage);
             const loadingScreen = document.getElementById('loading-screen');
             const errorScreen = document.getElementById('error-screen');
             const contentContainer = document.getElementById('content-container');
             const errorMessageEl = document.getElementById('error-message');
             const errorDetailsEl = document.getElementById('error-details');
 
-            logScreenStates('Before showing error');
-
             // Ensure only error screen is visible
-            console.log('Action: Adding "hidden" class to loading screen');
             loadingScreen.classList.add('hidden');
-
-            console.log('Action: Removing "loaded" class from content container');
             contentContainer.classList.remove('loaded');
 
             // Determine user-friendly message based on error type
@@ -983,12 +918,8 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
                 errorDetailsEl.classList.remove('hidden');
             }
 
-            console.log('Action: Removing "hidden" class from error screen');
             // Show error screen
             errorScreen.classList.remove('hidden');
-
-            logScreenStates('After showing error');
-            console.log('<<< showErrorScreen() complete\n');
         }
 
         // Render questionnaire dynamically
@@ -1038,8 +969,6 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
             // Re-initialize event listeners for new buttons
             initializeQuestionListeners();
-
-            console.log('Questionnaire rendered successfully with', questions.length, 'questions');
         }
 
         // Create a question screen element
@@ -1113,8 +1042,6 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
                     // Enable next button
                     document.getElementById('next-button').disabled = false;
-
-                    console.log('Answer recorded:', { questionId, value });
                 });
             });
 
@@ -1129,8 +1056,6 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
 
                     // Enable next button if not empty
                     document.getElementById('next-button').disabled = value.trim() === '';
-
-                    console.log('Answer recorded:', { questionId, value });
                 });
             });
         }
@@ -1225,8 +1150,6 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
                     submitted_at: new Date().toISOString()
                 };
 
-                console.log('Submitting questionnaire:', submissionData);
-
                 // Submit to database
                 const { data, error } = await supabase
                     .from('echo_answers')
@@ -1235,8 +1158,6 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
                 if (error) {
                     throw error;
                 }
-
-                console.log('Questionnaire submitted successfully:', data);
 
                 // Show thank you screen
                 const screens = document.querySelectorAll('.screen');
@@ -1252,19 +1173,11 @@ Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for bett
                 document.getElementById('navigation').classList.add('hidden');
 
             } catch (error) {
-                console.error('Error submitting questionnaire:', error);
                 alert('提交失败：' + error.message + '\n\nSubmission failed: ' + error.message);
             }
         }
 
-        // Log initial screen states on page load
-        console.log('\n=== INITIAL STATE (before any JavaScript execution) ===');
-        setTimeout(() => {
-            logScreenStates('Immediately after page load');
-        }, 0);
-
         // Load questionnaire data from database on page load
-        console.log('Calling loadQuestionnaireData()...\n');
         loadQuestionnaireData();
     </script>
 </body>
