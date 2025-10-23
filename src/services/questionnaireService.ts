@@ -380,6 +380,7 @@ export const assignQuestionnaireToRestaurant = async (
   const tablesWithAssignments: Array<{ table_number: string; questionnaires: string[] }> = []
 
   for (const table of tablesWithQRCodes) {
+    if (!table.echo_qrcode) continue
     const { hasAssignments, existingQuestionnaires } = await checkExistingAssignments(table.echo_qrcode.id)
     if (hasAssignments) {
       tablesWithAssignments.push({
