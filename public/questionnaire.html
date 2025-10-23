@@ -1,9 +1,12 @@
 <!--
-Version: 3.3.1
+Version: 3.3.2
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.3.1 - Added proportional padding around glassmorphism container for better visual spacing
+Changes: v3.3.2 - Increased padding to 20px (vertical) and width to 90% for better visual proportions
+                 - Container now has proper breathing room and background visibility
+                 - Improved layering effect with more visible background pattern
+         v3.3.1 - Added proportional padding around glassmorphism container for better visual spacing
          v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser compatibility
                  - Fixed viewport height issues (100vh problem) by using dynamic viewport calculation
                  - Added JavaScript-based --vh custom property for accurate mobile viewport height
@@ -81,8 +84,8 @@ Changes: v3.3.1 - Added proportional padding around glassmorphism container for 
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Add padding around container for visual spacing */
-            padding: 16px;
+            /* Increased padding for better visual proportions and background visibility */
+            padding: 20px 0;
             -webkit-font-smoothing: antialiased;
             /* Prevent scrolling on body */
             overflow: hidden;
@@ -90,18 +93,19 @@ Changes: v3.3.1 - Added proportional padding around glassmorphism container for 
         }
 
         .container {
-            width: 100%;
-            max-width: 500px;
-            /* Use calc with custom property for dynamic height, subtract padding (16px * 2 = 32px) */
-            height: calc(var(--vh, 1vh) * 100 - 32px);
+            /* Use 90% width for better proportions and background visibility */
+            width: 90%;
+            max-width: 480px;
+            /* Use calc with custom property for dynamic height, subtract padding (20px * 2 = 40px) */
+            height: calc(var(--vh, 1vh) * 100 - 40px);
             /* Fallback for older browsers */
-            height: calc(100vh - 32px);
+            height: calc(100vh - 40px);
             /* Support for webkit browsers */
             height: -webkit-fill-available;
             /* Modern dynamic viewport height */
-            height: calc(100dvh - 32px);
+            height: calc(100dvh - 40px);
             /* Limit maximum height to prevent overflow */
-            max-height: calc(var(--vh, 1vh) * 100 - 32px);
+            max-height: calc(var(--vh, 1vh) * 100 - 40px);
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -549,14 +553,15 @@ Changes: v3.3.1 - Added proportional padding around glassmorphism container for 
         @media screen and (max-height: 600px) {
             /* Reduce body padding for smaller screens */
             body {
-                padding: 12px;
+                padding: 16px 0;
             }
 
             .container {
-                height: calc(var(--vh, 1vh) * 100 - 24px);
-                height: calc(100vh - 24px);
-                height: calc(100dvh - 24px);
-                max-height: calc(var(--vh, 1vh) * 100 - 24px);
+                width: 92%;
+                height: calc(var(--vh, 1vh) * 100 - 32px);
+                height: calc(100vh - 32px);
+                height: calc(100dvh - 32px);
+                max-height: calc(var(--vh, 1vh) * 100 - 32px);
             }
 
             .restaurant-header {
