@@ -1,9 +1,10 @@
 <!--
-Version: 3.3.0
+Version: 3.3.1
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser compatibility
+Changes: v3.3.1 - Added proportional padding around glassmorphism container for better visual spacing
+         v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser compatibility
                  - Fixed viewport height issues (100vh problem) by using dynamic viewport calculation
                  - Added JavaScript-based --vh custom property for accurate mobile viewport height
                  - Restructured HTML/CSS to prevent page scrolling in mobile browsers
@@ -80,8 +81,8 @@ Changes: v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser comp
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Remove padding to maximize viewport usage */
-            padding: 0;
+            /* Add padding around container for visual spacing */
+            padding: 16px;
             -webkit-font-smoothing: antialiased;
             /* Prevent scrolling on body */
             overflow: hidden;
@@ -91,16 +92,16 @@ Changes: v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser comp
         .container {
             width: 100%;
             max-width: 500px;
-            /* Use calc with custom property for dynamic height */
-            height: calc(var(--vh, 1vh) * 100);
+            /* Use calc with custom property for dynamic height, subtract padding (16px * 2 = 32px) */
+            height: calc(var(--vh, 1vh) * 100 - 32px);
             /* Fallback for older browsers */
-            height: 100vh;
+            height: calc(100vh - 32px);
             /* Support for webkit browsers */
             height: -webkit-fill-available;
             /* Modern dynamic viewport height */
-            height: 100dvh;
+            height: calc(100dvh - 32px);
             /* Limit maximum height to prevent overflow */
-            max-height: calc(var(--vh, 1vh) * 100);
+            max-height: calc(var(--vh, 1vh) * 100 - 32px);
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -546,6 +547,18 @@ Changes: v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser comp
 
         /* Add media query for smaller devices */
         @media screen and (max-height: 600px) {
+            /* Reduce body padding for smaller screens */
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                height: calc(var(--vh, 1vh) * 100 - 24px);
+                height: calc(100vh - 24px);
+                height: calc(100dvh - 24px);
+                max-height: calc(var(--vh, 1vh) * 100 - 24px);
+            }
+
             .restaurant-header {
                 padding: 16px 12px 12px;
             }
