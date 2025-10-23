@@ -1,11 +1,20 @@
 <!--
-Version: 3.6.0
+Version: 3.6.2
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales to fit viewport
-                 - Scrollable-content overflow changed to visible (no scrolling)
-                 - Ultra-compact font sizes: question text min 9px, options min 8px
+Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
+                 - Progress now only shown via dots (cleaner UI)
+                 - Removed unused CSS for .progress-text
+                 - Updated JavaScript to remove references to current-step/total-steps elements
+         v3.6.1 - FLEX COMPRESSION: All sections can now shrink proportionally to fit content
+                 - Changed flex-shrink from 0 to 1 on header, progress, navigation
+                 - Options gap reduced to min 1px, buttons min height 20px, font 7px
+                 - All elements use flexbox compression to guarantee no overflow
+                 - Screen elements now use flex layout with min-height: 0
+         v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales to fit viewport
+                 - Scrollable-content overflow changed to hidden (no scrolling)
+                 - Ultra-compact font sizes: question text min 9px, options min 7px
                  - Reduced all spacing minimums: gaps, padding, margins all use aggressive vh scaling
                  - Container height remains 60vh but content now auto-adapts to fit
                  - All elements guaranteed to display without scrolling
@@ -190,13 +199,6 @@ Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales 
             transform: scale(1.1);
         }
 
-        .progress-text {
-            text-align: center;
-            font-size: clamp(9px, 1.8vh, 14px);
-            color: rgba(255, 255, 255, 0.9);
-            font-weight: 500;
-        }
-
         /* Scrollable content area - NO SCROLL MODE */
         .scrollable-content {
             flex: 1;
@@ -263,7 +265,10 @@ Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales 
             display: flex;
             flex-direction: column;
             /* Ultra-compact gap for no-scroll mode */
-            gap: clamp(2px, 1vh, 12px);
+            gap: clamp(1px, 0.8vh, 12px);
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .option-button {
@@ -271,24 +276,26 @@ Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales 
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: clamp(8px, 2vh, 16px);
-            /* Ultra-compact padding for no-scroll mode */
-            padding: clamp(4px, 1.5vh, 16px) clamp(8px, 2vh, 20px);
-            /* Ultra-compact minimum font size */
-            font-size: clamp(8px, 1.8vh, 16px);
+            border-radius: clamp(6px, 1.5vh, 16px);
+            /* Extreme compact padding for no-scroll mode */
+            padding: clamp(3px, 1.2vh, 16px) clamp(6px, 1.5vh, 20px);
+            /* Extreme compact minimum font size */
+            font-size: clamp(7px, 1.6vh, 16px);
             color: rgba(255, 255, 255, 0.95);
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: left;
             font-weight: 500;
-            /* Ultra-compact minimum height */
-            min-height: clamp(24px, 4vh, 56px);
+            /* Extreme compact minimum height - allow more compression */
+            min-height: clamp(20px, 3.5vh, 56px);
             display: flex;
             align-items: center;
             -webkit-tap-highlight-color: transparent;
             /* Ensure text wraps in buttons */
             word-wrap: break-word;
             overflow-wrap: break-word;
+            /* Allow button to shrink if needed */
+            flex-shrink: 1;
         }
 
         .option-button:active {
@@ -656,9 +663,6 @@ Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales 
                     <div class="progress-dot" data-step="2"></div>
                     <div class="progress-dot" data-step="3"></div>
                 </div>
-                <div class="progress-text">
-                    <span id="current-step">1</span> / <span id="total-steps">3</span>
-                </div>
             </div>
 
             <!-- Scrollable Content Area -->
@@ -942,9 +946,6 @@ Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales 
 
             totalSteps = questions.length;
 
-            // Update total steps display
-            document.getElementById('total-steps').textContent = totalSteps;
-
             // Generate progress dots
             const progressDotsContainer = document.querySelector('.progress-dots');
             progressDotsContainer.innerHTML = '';
@@ -1062,8 +1063,6 @@ Changes: v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales 
 
         // Update progress indicator
         function updateProgress() {
-            document.getElementById('current-step').textContent = currentStep;
-
             const dots = document.querySelectorAll('.progress-dot');
             dots.forEach((dot, index) => {
                 if (index < currentStep) {
