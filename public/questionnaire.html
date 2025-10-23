@@ -1,9 +1,19 @@
 <!--
-Version: 3.2.0
+Version: 3.3.0
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS specificity issue
+Changes: v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser compatibility
+                 - Fixed viewport height issues (100vh problem) by using dynamic viewport calculation
+                 - Added JavaScript-based --vh custom property for accurate mobile viewport height
+                 - Restructured HTML/CSS to prevent page scrolling in mobile browsers
+                 - Added scrollable content area inside fixed container for long questionnaires
+                 - Reduced all padding and font sizes for better mobile fit
+                 - Added media queries for devices with height < 600px
+                 - Implemented pull-to-refresh prevention for better UX
+                 - Loading and error screens now use absolute positioning to fill container
+                 - Navigation bar now has fixed position with background for better visibility
+         v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS specificity issue
                  - Root cause: .loading-screen and .error-screen (display: flex) were overriding
                    .hidden (display: none) because they appeared later in the CSS
                  - This caused all three screens to be visible even with .hidden class applied
@@ -32,7 +42,9 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>餐厅问卷 | Restaurant Questionnaire</title>
 
     <!-- Supabase Client -->
@@ -44,59 +56,100 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
             box-sizing: border-box;
         }
 
+        /* Root variables for dynamic viewport height */
+        :root {
+            --vh: 1vh;
+            --app-height: 100vh;
+        }
+
+        html {
+            height: 100%;
+            /* Prevent overscroll bounce on iOS */
+            position: fixed;
+            width: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-            background: url('background.png') center/cover no-repeat fixed;
+            background: url('background.png') center/cover no-repeat;
             background-color: #1e3a5f;
-            min-height: 100vh;
+            /* Use 100% instead of 100vh for better mobile compatibility */
+            height: 100%;
+            width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            /* Remove padding to maximize viewport usage */
+            padding: 0;
             -webkit-font-smoothing: antialiased;
+            /* Prevent scrolling on body */
+            overflow: hidden;
+            position: relative;
         }
 
         .container {
             width: 100%;
             max-width: 500px;
+            /* Use calc with custom property for dynamic height */
+            height: calc(var(--vh, 1vh) * 100);
+            /* Fallback for older browsers */
+            height: 100vh;
+            /* Support for webkit browsers */
+            height: -webkit-fill-available;
+            /* Modern dynamic viewport height */
+            height: 100dvh;
+            /* Limit maximum height to prevent overflow */
+            max-height: calc(var(--vh, 1vh) * 100);
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 24px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            /* Change overflow to auto for internal scrolling */
             overflow: hidden;
             position: relative;
+            /* Flex container for proper content layout */
+            display: flex;
+            flex-direction: column;
         }
 
         /* Restaurant Header */
         .restaurant-header {
-            padding: 32px 24px 20px;
+            /* Reduced padding for mobile viewport */
+            padding: 20px 16px 16px;
             text-align: center;
             background: rgba(255, 255, 255, 0.15);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            /* Prevent shrinking */
+            flex-shrink: 0;
         }
 
         .restaurant-name {
-            font-size: 28px;
+            /* Slightly reduced font size for mobile */
+            font-size: 24px;
             font-weight: 700;
             color: rgba(255, 255, 255, 0.95);
-            letter-spacing: 2px;
-            line-height: 1.4;
-            margin-bottom: 8px;
+            letter-spacing: 1.5px;
+            line-height: 1.3;
+            margin-bottom: 6px;
         }
 
         .restaurant-subtitle {
-            font-size: 14px;
+            font-size: 13px;
             color: rgba(255, 255, 255, 0.7);
-            letter-spacing: 1px;
+            letter-spacing: 0.8px;
         }
 
         /* Progress Bar */
         .progress-container {
-            padding: 24px 24px 12px;
+            /* Reduced padding */
+            padding: 16px 16px 12px;
             background: rgba(255, 255, 255, 0.1);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            /* Prevent shrinking */
+            flex-shrink: 0;
         }
 
         .progress-dots {
@@ -126,10 +179,21 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
             font-weight: 500;
         }
 
+        /* Scrollable content area */
+        .scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            /* Add some bottom padding for better scrolling experience */
+            padding-bottom: 20px;
+        }
+
         /* Question Screen */
         .screen {
             display: none;
-            padding: 32px 24px;
+            /* Reduced padding for mobile */
+            padding: 20px 16px;
             animation: fadeIn 0.4s ease;
         }
 
@@ -158,10 +222,12 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
         }
 
         .question-text {
-            font-size: 24px;
+            /* Reduced font size for mobile */
+            font-size: 20px;
             font-weight: 700;
             color: rgba(255, 255, 255, 0.95);
-            margin-bottom: 32px;
+            /* Reduced margin */
+            margin-bottom: 24px;
             line-height: 1.4;
         }
 
@@ -169,7 +235,8 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
         .options {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            /* Reduced gap */
+            gap: 12px;
         }
 
         .option-button {
@@ -178,14 +245,17 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.4);
             border-radius: 16px;
-            padding: 20px 24px;
-            font-size: 18px;
+            /* Reduced padding */
+            padding: 16px 20px;
+            /* Reduced font size */
+            font-size: 16px;
             color: rgba(255, 255, 255, 0.95);
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: left;
             font-weight: 500;
-            min-height: 64px;
+            /* Reduced min-height */
+            min-height: 56px;
             display: flex;
             align-items: center;
             -webkit-tap-highlight-color: transparent;
@@ -240,9 +310,14 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
 
         /* Navigation Buttons */
         .navigation {
-            padding: 0 24px 32px;
+            /* Reduced padding for mobile */
+            padding: 16px 16px 20px;
             display: flex;
             gap: 12px;
+            /* Prevent shrinking */
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .nav-button {
@@ -287,7 +362,8 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
         /* Thank You Screen */
         .thank-you {
             text-align: center;
-            padding: 48px 24px;
+            /* Reduced padding for mobile */
+            padding: 32px 16px;
         }
 
         .thank-you-icon {
@@ -319,8 +395,15 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 64px 24px;
-            min-height: 400px;
+            /* Ensure loading screen fills container */
+            height: 100%;
+            width: 100%;
+            padding: 20px;
+            /* Remove min-height to prevent overflow */
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
         }
 
         .loading-spinner {
@@ -380,8 +463,14 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 64px 24px;
-            min-height: 400px;
+            /* Ensure error screen fills container */
+            height: 100%;
+            width: 100%;
+            padding: 20px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
             text-align: center;
         }
 
@@ -443,11 +532,50 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
             display: none;
             opacity: 0;
             transition: opacity 0.4s ease;
+            /* Ensure flex layout when visible */
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            position: relative;
         }
 
         .content-container.loaded {
-            display: block;
+            display: flex;
             opacity: 1;
+        }
+
+        /* Add media query for smaller devices */
+        @media screen and (max-height: 600px) {
+            .restaurant-header {
+                padding: 16px 12px 12px;
+            }
+
+            .restaurant-name {
+                font-size: 20px;
+            }
+
+            .progress-container {
+                padding: 12px 12px 10px;
+            }
+
+            .screen {
+                padding: 16px 12px;
+            }
+
+            .question-text {
+                font-size: 18px;
+                margin-bottom: 16px;
+            }
+
+            .option-button {
+                padding: 12px 16px;
+                min-height: 48px;
+                font-size: 14px;
+            }
+
+            .navigation {
+                padding: 12px 12px 16px;
+            }
         }
     </style>
 </head>
@@ -491,8 +619,10 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
                 </div>
             </div>
 
-            <!-- Question 1 -->
-            <div class="screen active" data-question="1">
+            <!-- Scrollable Content Area -->
+            <div class="scrollable-content">
+                <!-- Question 1 -->
+                <div class="screen active" data-question="1">
                 <div class="question-number">Question 1</div>
                 <div class="question-text">How would you rate your overall dining experience?</div>
                 <div class="options">
@@ -528,14 +658,16 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
                 </div>
             </div>
 
-            <!-- Thank You Screen -->
-            <div class="screen thank-you hidden" id="thank-you-screen">
-                <div class="thank-you-icon">🎉</div>
-                <div class="thank-you-title">Thank You!</div>
-                <div class="thank-you-message">
-                    We appreciate your feedback and look forward to serving you again soon.
+                <!-- Thank You Screen -->
+                <div class="screen thank-you hidden" id="thank-you-screen">
+                    <div class="thank-you-icon">🎉</div>
+                    <div class="thank-you-title">Thank You!</div>
+                    <div class="thank-you-message">
+                        We appreciate your feedback and look forward to serving you again soon.
+                    </div>
                 </div>
             </div>
+            <!-- End of Scrollable Content -->
 
             <!-- Navigation Buttons -->
             <div class="navigation" id="navigation">
@@ -546,6 +678,48 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
     </div>
 
     <script>
+        // Dynamic viewport height calculation for mobile browsers
+        function setViewportHeight() {
+            // Calculate the actual viewport height
+            const vh = window.innerHeight * 0.01;
+            // Set the value in the --vh custom property to the root of the document
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+
+        // Set viewport height on load
+        setViewportHeight();
+
+        // Update on resize and orientation change
+        window.addEventListener('resize', setViewportHeight);
+        window.addEventListener('orientationchange', setViewportHeight);
+
+        // Also update when the page becomes visible (for browser UI changes)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                setViewportHeight();
+            }
+        });
+
+        // Prevent pull-to-refresh on mobile
+        let lastTouchY = 0;
+        let preventPullToRefresh = false;
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                lastTouchY = e.touches[0].clientY;
+            }
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            const touchY = e.touches[0].clientY;
+            const touchDiff = touchY - lastTouchY;
+            lastTouchY = touchY;
+
+            if (window.scrollY === 0 && touchDiff > 0) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
         // Supabase Configuration
         const SUPABASE_URL = 'https://wdpeoyugsxqnpwwtkqsl.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkcGVveXVnc3hxbnB3d3RrcXNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxNDgwNzgsImV4cCI6MjA1OTcyNDA3OH0.9bUpuZCOZxDSH3KsIu6FwWZyAvnV5xPJGNpO3luxWOE';
@@ -833,15 +1007,15 @@ Changes: v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS spe
             }
 
             // Clear existing question screens
-            const contentContainer = document.getElementById('content-container');
-            const existingQuestions = contentContainer.querySelectorAll('.screen[data-question]');
+            const scrollableContent = document.querySelector('.scrollable-content');
+            const existingQuestions = scrollableContent.querySelectorAll('.screen[data-question]');
             existingQuestions.forEach(q => q.remove());
 
             // Generate new question screens
             questions.forEach((question, index) => {
                 const screen = createQuestionScreen(question, index);
                 // Insert before the thank-you screen
-                contentContainer.insertBefore(screen, document.getElementById('thank-you-screen'));
+                scrollableContent.insertBefore(screen, document.getElementById('thank-you-screen'));
             });
 
             // Re-initialize event listeners for new buttons
