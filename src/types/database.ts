@@ -90,9 +90,9 @@ export interface EchoAnswer {
 }
 
 // Extended types with joined data
-// Note: echo_qrcode is a single object (1:1 relationship), not an array
+// Note: Supabase returns foreign key relationships as arrays even for 1:1 relationships
 export interface TableWithQRCode extends EchoTable {
-  echo_qrcode?: EchoQRCode
+  echo_qrcode?: EchoQRCode[]
 }
 
 export interface QRCodeWithAssignments extends EchoQRCode {

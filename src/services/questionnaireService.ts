@@ -116,9 +116,12 @@ export const getAssignmentsForQuestionnaire = async (
   const restaurantMap = new Map<string, QuestionnaireAssignment>()
 
   data?.forEach((assignment: any) => {
-    const qrcode = assignment.echo_qrcode
-    const table = qrcode.echo_table
-    const restaurant = table.roleplay_restaurants
+    const qrcode = Array.isArray(assignment.echo_qrcode) ? assignment.echo_qrcode[0] : assignment.echo_qrcode
+    if (!qrcode) return
+    const table = Array.isArray(qrcode.echo_table) ? qrcode.echo_table[0] : qrcode.echo_table
+    if (!table) return
+    const restaurant = Array.isArray(table.roleplay_restaurants) ? table.roleplay_restaurants[0] : table.roleplay_restaurants
+    if (!restaurant) return
 
     if (!restaurantMap.has(restaurant.id)) {
       restaurantMap.set(restaurant.id, {
@@ -370,7 +373,7 @@ export const assignQuestionnaireToRestaurant = async (
   }
 
   // Filter tables that have QR codes
-  const tablesWithQRCodes = tables.filter((table: any) => table.echo_qrcode && table.echo_qrcode.id)
+  const tablesWithQRCodes = tables.filter((table: any) => table.echo_qrcode && table.echo_qrcode.length > 0 && table.echo_qrcode[0].id)
 
   if (tablesWithQRCodes.length === 0) {
     throw new Error('No QR codes found for this restaurant. Please generate QR codes first.')
@@ -380,8 +383,8 @@ export const assignQuestionnaireToRestaurant = async (
   const tablesWithAssignments: Array<{ table_number: string; questionnaires: string[] }> = []
 
   for (const table of tablesWithQRCodes) {
-    if (!table.echo_qrcode) continue
-    const { hasAssignments, existingQuestionnaires } = await checkExistingAssignments(table.echo_qrcode.id)
+    if (!table.echo_qrcode || table.echo_qrcode.length === 0) continue
+    const { hasAssignments, existingQuestionnaires } = await checkExistingAssignments(table.echo_qrcode[0].id)
     if (hasAssignments) {
       tablesWithAssignments.push({
         table_number: table.table_number,
@@ -403,7 +406,7 @@ export const assignQuestionnaireToRestaurant = async (
 
   // Create assignments for all QR codes
   const assignments = tablesWithQRCodes.map((table: any) => ({
-    qrcode_id: table.echo_qrcode.id,
+    qrcode_id: table.echo_qrcode[0].id,
     questionnaire_id: questionnaireId,
     is_active: true,
     weight,
