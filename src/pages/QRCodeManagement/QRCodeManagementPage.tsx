@@ -1,7 +1,9 @@
-// Version: 2.1.0
+// Version: 2.3.0
 // QR Code Management Page - Generate and manage QR codes for restaurant tables
 // Features: Restaurant selection, table list, QR code generation, regeneration, download functionality
-// Updated: Changed restaurant display format to show name, address, and city for better distinction
+// v2.3.0: Fixed critical bug - echo_qrcode is a single object (not array) for 1:1 relationships, updated all references
+// v2.2.0: Fixed bug - hasQRCode check now properly validates echo_qrcode array length instead of just checking truthiness
+// v2.1.0: Changed restaurant display format to show name, address, and city for better distinction
 
 import { useState, useEffect } from 'react'
 import {
@@ -92,8 +94,9 @@ export default function QRCodeManagementPage() {
       // Generate QR code images for existing QR codes
       const images: Record<string, string> = {}
       for (const table of data) {
-        if (table.echo_qrcode && table.echo_qrcode.length > 0) {
-          images[table.id] = await generateQRCodeImage(table.echo_qrcode[0].qr_code_value)
+        // echo_qrcode is a single object (not array) for 1:1 relationships
+        if (table.echo_qrcode && table.echo_qrcode.qr_code_value) {
+          images[table.id] = await generateQRCodeImage(table.echo_qrcode.qr_code_value)
         }
       }
       setQrCodeImages(images)
@@ -111,11 +114,11 @@ export default function QRCodeManagementPage() {
 
       const { qrCodeData, imageUrl } = await generateQRCodeForTable(tableId)
 
-      // Update the table in the list
+      // Update the table in the list (echo_qrcode is a single object, not array)
       setTables((prevTables) =>
         prevTables.map((table) =>
           table.id === tableId
-            ? { ...table, echo_qrcode: [qrCodeData] }
+            ? { ...table, echo_qrcode: qrCodeData }
             : table
         )
       )
@@ -164,7 +167,8 @@ export default function QRCodeManagementPage() {
   }
 
   const handleRegenerateQRCode = async () => {
-    if (!tableToRegenerate || !tableToRegenerate.echo_qrcode || tableToRegenerate.echo_qrcode.length === 0) {
+    // echo_qrcode is a single object (not array) for 1:1 relationships
+    if (!tableToRegenerate || !tableToRegenerate.echo_qrcode) {
       return
     }
 
@@ -172,17 +176,17 @@ export default function QRCodeManagementPage() {
       setRegeneratingQRCode(true)
       setError(null)
 
-      const existingQRCode = tableToRegenerate.echo_qrcode[0]
+      const existingQRCode = tableToRegenerate.echo_qrcode
       const { qrCodeData, imageUrl } = await regenerateQRCodeForTable(
         tableToRegenerate.id,
         existingQRCode.id
       )
 
-      // Update the table in the list
+      // Update the table in the list (echo_qrcode is a single object, not array)
       setTables((prevTables) =>
         prevTables.map((table) =>
           table.id === tableToRegenerate.id
-            ? { ...table, echo_qrcode: [qrCodeData] }
+            ? { ...table, echo_qrcode: qrCodeData }
             : table
         )
       )
@@ -266,6 +270,7 @@ export default function QRCodeManagementPage() {
           ) : (
             <Grid container spacing={3}>
               {tables.map((table) => {
+                // echo_qrcode is a single object (not array) for 1:1 relationships
                 const hasQRCode = !!table.echo_qrcode
                 const qrCodeImage = qrCodeImages[table.id]
                 const isGenerating = generatingQRCodeForTable === table.id

@@ -1,7 +1,13 @@
-// Version: 2.4.0
+// Version: 2.6.0
 // Questionnaire Editor Page - Create and edit questionnaires with flexible question types
 // Features: Dynamic question builder, multiple choice with 2-5 options, text input, drag-and-drop reordering
 // Updated: Complete redesign to support different question types (multiple_choice, text_input) with JSONB storage
+// v2.6.0: IMPROVED UX - Restaurant-wide assignments now show detailed success messages with assigned/skipped table counts
+// v2.5.0: Added collapsible restaurant sections in assignments with bulk delete functionality
+//         - Restaurants are now foldable/expandable by clicking the header
+//         - Added DeleteSweep button to remove all assignments for entire restaurant at once
+//         - Shows table count badge on each restaurant
+//         - Individual table delete buttons still available when expanded
 // v2.4.0: Added placeholder text to Label and Value fields; removed default values for both (now empty strings)
 //         Label placeholder: "答案"
 //         Value placeholder: "数据标识（如：情绪1-5，同义词则留空）"
@@ -55,6 +61,9 @@ import {
   DragIndicator,
   RemoveCircleOutline,
   AddCircle,
+  ExpandMore,
+  ExpandLess,
+  DeleteSweep,
 } from '@mui/icons-material'
 import type {
   Restaurant,
@@ -76,6 +85,7 @@ import {
   validateQuestions,
   getAssignmentsForQuestionnaire,
   removeAssignment,
+  removeRestaurantAssignments,
 } from '../../services/questionnaireService'
 
 type AssignmentScope = 'restaurant' | 'table'
@@ -97,6 +107,9 @@ export default function QuestionnaireEditorPage() {
   })
 
   const [assignments, setAssignments] = useState<Map<string, QuestionnaireAssignment[]>>(new Map())
+
+  // Track which restaurants are expanded (stores restaurant IDs)
+  const [expandedRestaurants, setExpandedRestaurants] = useState<Set<string>>(new Set())
 
   // Snackbar/Toast notification state
   const [snackbar, setSnackbar] = useState<{
@@ -433,10 +446,31 @@ export default function QuestionnaireEditorPage() {
           showNotification('Please select a restaurant', 'warning')
           return
         }
-        await assignQuestionnaireToRestaurant(
+        const result = await assignQuestionnaireToRestaurant(
           selectedRestaurantId,
           selectedQuestionnaireForAssignment.id
         )
+
+        // Show detailed success message
+        let successMessage = `Successfully assigned questionnaire to ${result.assignedCount} table(s)!`
+        if (result.skippedCount > 0) {
+          const skippedTableList = result.skippedTables.map(t => t.table_number).join(', ')
+          successMessage += ` (Skipped ${result.skippedCount} table(s) that already have assignments: ${skippedTableList})`
+        }
+
+        // Refresh assignments and close dialog
+        const updatedAssignments = await getAssignmentsForQuestionnaire(
+          selectedQuestionnaireForAssignment.id
+        )
+        setAssignments((prev) => {
+          const newMap = new Map(prev)
+          newMap.set(selectedQuestionnaireForAssignment.id, updatedAssignments)
+          return newMap
+        })
+
+        handleCloseAssignment()
+        showNotification(successMessage, 'success')
+        return
       } else {
         // table scope
         if (!selectedTableId) {
@@ -444,15 +478,31 @@ export default function QuestionnaireEditorPage() {
           return
         }
         const table = tables.find((t) => t.id === selectedTableId)
-        if (table?.echo_qrcode && table.echo_qrcode.length > 0) {
-          await assignQuestionnaireToQRCode(
-            table.echo_qrcode[0].id,
-            selectedQuestionnaireForAssignment.id
-          )
-        } else {
+        if (!table) {
+          showNotification('Table not found', 'error')
+          return
+        }
+
+        // Handle both object and array formats for echo_qrcode
+        let qrcodeId: string | null = null
+        const qrcode = table.echo_qrcode
+        if (qrcode) {
+          if (Array.isArray(qrcode) && qrcode.length > 0) {
+            qrcodeId = qrcode[0]?.id || null
+          } else if (typeof qrcode === 'object' && 'id' in qrcode) {
+            qrcodeId = qrcode.id
+          }
+        }
+
+        if (!qrcodeId) {
           showNotification('Table has no QR code, please generate one first', 'warning')
           return
         }
+
+        await assignQuestionnaireToQRCode(
+          qrcodeId,
+          selectedQuestionnaireForAssignment.id
+        )
       }
 
       // Refresh assignments for this questionnaire to update UI immediately
@@ -494,6 +544,56 @@ export default function QuestionnaireEditorPage() {
       showNotification('Assignment removed successfully!', 'success')
     } catch (err) {
       showNotification(err instanceof Error ? err.message : 'Failed to remove assignment', 'error')
+    }
+  }
+
+  const handleToggleRestaurant = (restaurantId: string) => {
+    setExpandedRestaurants((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(restaurantId)) {
+        newSet.delete(restaurantId)
+      } else {
+        newSet.add(restaurantId)
+      }
+      return newSet
+    })
+  }
+
+  const handleRemoveRestaurantAssignments = async (
+    questionnaireId: string,
+    restaurantId: string,
+    restaurantName: string,
+    tableCount: number
+  ) => {
+    if (
+      !confirm(
+        `Remove ALL ${tableCount} questionnaire assignments from ${restaurantName}?\n\nThis will delete assignments for all tables in this restaurant.`
+      )
+    ) {
+      return
+    }
+
+    try {
+      setInlineAlert({ show: false, message: '', severity: 'info' })
+      const removedCount = await removeRestaurantAssignments(questionnaireId, restaurantId)
+
+      // Refresh assignments for this questionnaire
+      const updatedAssignments = await getAssignmentsForQuestionnaire(questionnaireId)
+      setAssignments((prev) => {
+        const newMap = new Map(prev)
+        newMap.set(questionnaireId, updatedAssignments)
+        return newMap
+      })
+
+      showNotification(
+        `Successfully removed ${removedCount} assignment${removedCount !== 1 ? 's' : ''} from ${restaurantName}!`,
+        'success'
+      )
+    } catch (err) {
+      showNotification(
+        err instanceof Error ? err.message : 'Failed to remove restaurant assignments',
+        'error'
+      )
     }
   }
 
@@ -628,46 +728,97 @@ export default function QuestionnaireEditorPage() {
                                 .filter(Boolean)
                                 .join(', ')
 
+                              const isExpanded = expandedRestaurants.has(assignment.restaurant_id)
+
                               return (
                                 <ListItem key={assignment.restaurant_id} sx={{ py: 0.5, px: 0, flexDirection: 'column', alignItems: 'flex-start' }}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', mb: 0.5 }}>
+                                  {/* Restaurant header with expand/collapse and bulk delete */}
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 1,
+                                      width: '100%',
+                                      mb: isExpanded ? 0.5 : 0,
+                                      cursor: 'pointer',
+                                      '&:hover': { bgcolor: 'action.hover' },
+                                      borderRadius: 1,
+                                      px: 1,
+                                      py: 0.5,
+                                    }}
+                                    onClick={() => handleToggleRestaurant(assignment.restaurant_id)}
+                                  >
+                                    {/* Expand/Collapse Icon */}
+                                    {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+
                                     <RestaurantIcon fontSize="small" color="action" />
-                                    <Typography variant="body2">
+
+                                    <Typography variant="body2" sx={{ flex: 1 }}>
                                       <strong>{restaurantDisplay}</strong>
                                     </Typography>
+
+                                    {/* Table count badge */}
+                                    <Chip
+                                      label={`${assignment.tables.length} table${assignment.tables.length !== 1 ? 's' : ''}`}
+                                      size="small"
+                                      sx={{ height: 20, fontSize: '0.7rem' }}
+                                    />
+
+                                    {/* Bulk delete button */}
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={(e) => {
+                                        e.stopPropagation() // Prevent toggling when clicking delete
+                                        handleRemoveRestaurantAssignments(
+                                          questionnaire.id,
+                                          assignment.restaurant_id,
+                                          assignment.restaurant_name,
+                                          assignment.tables.length
+                                        )
+                                      }}
+                                      sx={{ ml: 1 }}
+                                      title="Delete all assignments for this restaurant"
+                                    >
+                                      <DeleteSweep fontSize="small" />
+                                    </IconButton>
                                   </Box>
-                                  {/* Individual table assignments with delete buttons */}
-                                  <Box sx={{ pl: 4, width: '100%' }}>
-                                    {assignment.tables.map((table) => (
-                                      <Box
-                                        key={table.qrcode_id}
-                                        sx={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'space-between',
-                                          py: 0.25
-                                        }}
-                                      >
-                                        <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                          <TableBar fontSize="small" sx={{ fontSize: '0.9rem' }} />
-                                          Table {table.table_number}
-                                        </Typography>
-                                        <IconButton
-                                          size="small"
-                                          color="error"
-                                          onClick={() => handleRemoveAssignment(
-                                            table.assignment_id,
-                                            questionnaire.id,
-                                            assignment.restaurant_name,
-                                            table.table_number
-                                          )}
-                                          sx={{ ml: 1 }}
+
+                                  {/* Individual table assignments - only show when expanded */}
+                                  {isExpanded && (
+                                    <Box sx={{ pl: 4, width: '100%', mt: 0.5 }}>
+                                      {assignment.tables.map((table) => (
+                                        <Box
+                                          key={table.qrcode_id}
+                                          sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            py: 0.25
+                                          }}
                                         >
-                                          <Delete fontSize="small" />
-                                        </IconButton>
-                                      </Box>
-                                    ))}
-                                  </Box>
+                                          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <TableBar fontSize="small" sx={{ fontSize: '0.9rem' }} />
+                                            Table {table.table_number}
+                                          </Typography>
+                                          <IconButton
+                                            size="small"
+                                            color="error"
+                                            onClick={() => handleRemoveAssignment(
+                                              table.assignment_id,
+                                              questionnaire.id,
+                                              assignment.restaurant_name,
+                                              table.table_number
+                                            )}
+                                            sx={{ ml: 1 }}
+                                            title="Delete this table assignment"
+                                          >
+                                            <Delete fontSize="small" />
+                                          </IconButton>
+                                        </Box>
+                                      ))}
+                                    </Box>
+                                  )}
                                 </ListItem>
                               )
                             })}

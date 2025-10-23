@@ -1,5 +1,7 @@
-// Version: 1.3.0
+// Version: 1.5.0
 // Service for managing QR codes - generating, fetching, and downloading QR codes
+// v1.5.0: Fixed Supabase query syntax - removed !table_id from echo_qrcode relationship query
+// v1.4.0: Updated to use VITE_BASE_URL environment variable for production Vercel deployment
 // v1.3.0: Fixed bug where QR codes auto-assigned questionnaires from different restaurants with same name - now only auto-assigns questionnaires from same restaurant
 // v1.2.0: Fixed critical bug - now auto-assigns first active questionnaire when generating QR codes
 // v1.1.0: Updated default base URL to use localhost:3000/questionnaire.html format
@@ -17,7 +19,7 @@ export const getTablesWithQRCodes = async (restaurantId: string): Promise<TableW
     .from('echo_table')
     .select(`
       *,
-      echo_qrcode!table_id (*)
+      echo_qrcode (*)
     `)
     .eq('restaurant_id', restaurantId)
     .order('table_number', { ascending: true })
@@ -69,8 +71,10 @@ const getQuestionnairesForRestaurant = async (restaurantId: string): Promise<Arr
 
 /**
  * Generate QR code for a table (creates database entry and returns QR code image)
- * Base URL format: http://localhost:3000/questionnaire.html?qrcode=
- * Final URL: http://localhost:3000/questionnaire.html?qrcode={qrCodeId}
+ * Base URL is configured via VITE_BASE_URL environment variable
+ * Default (development): http://localhost:3000/questionnaire.html?qrcode=
+ * Production: https://echo.smartice.ai/questionnaire.html?qrcode=
+ * Final URL: {baseUrl}{qrCodeId}
  *
  * IMPORTANT: Automatically assigns questionnaires from the same restaurant
  * This ensures new QR codes get the same questionnaires as other tables in their restaurant.
@@ -78,7 +82,7 @@ const getQuestionnairesForRestaurant = async (restaurantId: string): Promise<Arr
  */
 export const generateQRCodeForTable = async (
   tableId: string,
-  baseUrl: string = 'http://localhost:3000/questionnaire.html?qrcode='
+  baseUrl: string = import.meta.env.VITE_BASE_URL || 'http://localhost:3000/questionnaire.html?qrcode='
 ): Promise<{ qrCodeData: EchoQRCode; imageUrl: string }> => {
   // Get the table's restaurant_id first
   const { data: tableData, error: tableError } = await supabase
@@ -201,7 +205,7 @@ export const createTable = async (restaurantId: string, tableNumber: string): Pr
 export const regenerateQRCodeForTable = async (
   tableId: string,
   existingQRCodeId: string,
-  baseUrl: string = 'http://localhost:3000/questionnaire.html?qrcode='
+  baseUrl: string = import.meta.env.VITE_BASE_URL || 'http://localhost:3000/questionnaire.html?qrcode='
 ): Promise<{ qrCodeData: EchoQRCode; imageUrl: string }> => {
   // Delete the existing QR code (CASCADE deletes questionnaire assignments)
   const { error: deleteError } = await supabase

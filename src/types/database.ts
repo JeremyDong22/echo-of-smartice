@@ -1,6 +1,7 @@
-// Version: 2.2.0
+// Version: 2.3.0
 // TypeScript types for database tables based on database_architecture.md
 // Updated: Added JSONB support for flexible question types and answer options
+// v2.3.0: Fixed TableWithQRCode type - echo_qrcode is a single object (not array) for 1:1 relationships
 // v2.2.0: Updated QuestionnaireAssignment to include restaurant address, city, and assignment_id for deletion
 // v2.1.0: Added QuestionnaireAssignment interface for displaying questionnaire-to-restaurant/table assignments
 // v2.0.0: Added Question, QuestionOption types, updated EchoQuestionnaire and EchoAnswer with JSONB fields
@@ -90,9 +91,9 @@ export interface EchoAnswer {
 }
 
 // Extended types with joined data
-// Note: Supabase returns foreign key relationships as arrays even for 1:1 relationships
+// Note: Supabase returns 1:1 relationships as a single object (not array)
 export interface TableWithQRCode extends EchoTable {
-  echo_qrcode?: EchoQRCode[]
+  echo_qrcode?: EchoQRCode | null
 }
 
 export interface QRCodeWithAssignments extends EchoQRCode {

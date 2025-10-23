@@ -1,6 +1,6 @@
 # Service Layer Architecture
 
-**Version: 1.1.0**
+**Version: 1.2.0**
 **Last Updated: 2025-10-24**
 **Purpose: Documents the service layer that connects frontend components to the Supabase backend**
 
@@ -92,9 +92,74 @@ The project uses a **Service Layer Pattern** to abstract all database interactio
 
 **Purpose**: Manages questionnaire CRUD operations and questionnaire-to-QR code assignments
 
-**Key Functions** (TODO: Document after reviewing the file)
+**Key Functions**:
 
-**Used By**: `QuestionnaireEditor.tsx` (TODO: Verify)
+#### `getAllQuestionnaires()`
+- Fetches all questionnaires ordered by creation date
+- Returns `EchoQuestionnaire[]` with both JSONB `questions` array and legacy fields
+
+#### `getQuestionnairesForQRCode(qrcodeId: string)`
+- Fetches active questionnaires assigned to a specific QR code
+- Filters by BOTH assignment-level AND questionnaire-level `is_active` flags
+- Used by customer-facing questionnaire page
+
+#### `createQuestionnaire(questionnaire: Omit<EchoQuestionnaire, 'id' | 'created_at' | 'updated_at'>)`
+- Creates new questionnaire with JSONB `questions` array
+- Validates questions structure (types, options, etc.)
+- Maintains backward compatibility with legacy `question_1/2/3` fields
+
+#### `updateQuestionnaire(questionnaireId: string, updates: Partial<EchoQuestionnaire>)`
+- Updates existing questionnaire
+- Supports both JSONB and legacy formats
+
+#### `validateQuestions(questions: Question[])`
+- Validates JSONB question structure before saving
+- Checks question types (`multiple_choice` | `text_input`)
+- Validates multiple choice options (2-5 required, must have label/value)
+
+#### `assignQuestionnaireToQRCode(qrcodeId: string, questionnaireId: string, weight?: number)`
+- **Important**: Enforces one questionnaire per table policy
+- Checks for existing assignments and throws error if found
+- Used for single-table assignments
+
+#### `assignQuestionnaireToRestaurant(restaurantId: string, questionnaireId: string, weight?: number)`
+- **Critical Business Logic**: Smart restaurant-wide assignment with skip behavior
+- **Process**:
+  1. Query all tables in restaurant with QR codes
+  2. Check each table for existing assignments (ANY questionnaire)
+  3. Skip tables that already have assignments (preserves A/B testing)
+  4. Only assign to tables WITHOUT any questionnaire
+  5. Return statistics: `{ assignedCount, skippedCount, skippedTables }`
+- **Key Behavior**: Will NOT overwrite existing assignments, even if different questionnaire
+- **Error**: Throws only if ALL tables already have assignments
+- **Bug Fix (v2.6.0)**: Changed from "error on duplicate" to "skip duplicates" for better UX
+
+#### `getAssignmentsForQuestionnaire(questionnaireId: string)`
+- Fetches all restaurants/tables that have this questionnaire assigned
+- Groups results by restaurant
+- Returns `QuestionnaireAssignment[]` with assignment IDs for deletion
+- Used by QuestionnaireEditorPage to display assignment status
+
+#### `removeAssignment(assignmentId: string)`
+- Hard delete of single table assignment
+- Used when removing individual table assignments
+
+#### `removeRestaurantAssignments(questionnaireId: string, restaurantId: string)`
+- Bulk delete all assignments for a questionnaire in a specific restaurant
+- Returns count of deleted assignments
+- Used for "Delete All" button in restaurant assignment sections
+
+#### Helper: `getQRCodeId(qrcode: any): string | null`
+- **Critical Fix (v2.5.0)**: Handles both object and array formats for `echo_qrcode`
+- Supabase returns objects for 1:1 relationships, despite TypeScript types defining arrays
+- Used throughout the service to safely extract QR code IDs
+
+#### Helper: `checkExistingAssignments(qrcodeId: string)`
+- Internal function to check if a QR code has ANY active questionnaire assignments
+- Returns both boolean flag and list of existing questionnaire titles
+- Used for duplicate detection
+
+**Used By**: `QuestionnaireEditorPage.tsx`
 
 ---
 
@@ -168,6 +233,130 @@ DELETE FROM echo_qrcode_questionnaire WHERE qrcode_id = 'old-qr-id';
 
 ---
 
+### Pattern 3: Restaurant-Wide Assignment with Smart Skip Logic
+
+**Problem**: When assigning a questionnaire to all tables in a restaurant, some tables may already have questionnaires assigned (either the same one or a different one for AB testing). Blocking the operation would force users to manually manage individual tables.
+
+**Solution**: `assignQuestionnaireToRestaurant()` now **skips** tables with existing assignments instead of throwing an error.
+
+**Business Rules**:
+1. Check each table for **ANY** active questionnaire assignment
+2. Skip tables that already have assignments (preserves existing questionnaires)
+3. Only assign to tables with **NO** questionnaire
+4. Return detailed statistics about what was done
+
+**Example Scenario**:
+```
+Restaurant has 5 tables:
+- Table A1: Already has Questionnaire A ✓
+- Table A2: Already has Questionnaire A ✓
+- Table B1: Already has Questionnaire B ✓
+- Table C1: No questionnaire ✗
+- Table C2: No questionnaire ✗
+
+User clicks "Assign Questionnaire A to Entire Restaurant"
+Result:
+- Tables A1, A2, B1 → SKIPPED (already have assignments)
+- Tables C1, C2 → ASSIGNED Questionnaire A
+
+Return: {
+  assignedCount: 2,
+  skippedCount: 3,
+  skippedTables: [
+    { table_number: 'A1', questionnaires: ['Questionnaire A'] },
+    { table_number: 'A2', questionnaires: ['Questionnaire A'] },
+    { table_number: 'B1', questionnaires: ['Questionnaire B'] }
+  ]
+}
+
+Success Message:
+"Successfully assigned questionnaire to 2 table(s)!
+(Skipped 3 table(s) that already have assignments: A1, A2, B1)"
+```
+
+**Key Behavior**:
+- Does NOT overwrite existing assignments (even different questionnaires)
+- Preserves AB testing setups
+- Only throws error if ALL tables already have assignments
+- Provides transparency via detailed return statistics
+
+**Code Location**: `src/services/questionnaireService.ts:427-566`
+
+**Why This Matters**: Prevents accidental destruction of AB testing configurations and provides a convenient "fill remaining tables" operation.
+
+---
+
+### Pattern 4: Supabase 1:1 Relationship Returns Object, Not Array
+
+**Critical Issue**: Supabase returns **objects** for 1:1 relationships, despite TypeScript type definitions declaring them as arrays.
+
+**Background**:
+- Database: `echo_table.id` ←1:1→ `echo_qrcode.table_id`
+- TypeScript type: `echo_qrcode?: EchoQRCode[]` (array)
+- Supabase reality: Returns single object when using `!table_id` syntax
+
+**Query That Triggers This**:
+```typescript
+const { data } = await supabase
+  .from('echo_table')
+  .select(`
+    id,
+    table_number,
+    echo_qrcode!table_id (*)
+  `)
+```
+
+**What You Get**:
+```javascript
+// Expected (based on types):
+{ id: '...', table_number: 'A1', echo_qrcode: [{ id: '...', qr_code_value: '...' }] }
+
+// Actual (Supabase behavior):
+{ id: '...', table_number: 'A1', echo_qrcode: { id: '...', qr_code_value: '...' } }
+```
+
+**Solution**: Helper function `getQRCodeId()` handles both formats:
+```typescript
+const getQRCodeId = (qrcode: any): string | null => {
+  if (!qrcode) return null
+
+  if (Array.isArray(qrcode)) {
+    return qrcode.length > 0 && qrcode[0]?.id ? qrcode[0].id : null
+  } else if (typeof qrcode === 'object' && qrcode.id) {
+    return qrcode.id
+  }
+
+  return null
+}
+```
+
+**Usage Throughout Codebase**:
+```typescript
+// ❌ DON'T: Assume it's always an array
+const qrcodeId = table.echo_qrcode[0].id  // TypeError if object!
+
+// ✅ DO: Use helper function
+const qrcodeId = getQRCodeId(table.echo_qrcode)
+if (qrcodeId) {
+  await assignQuestionnaireToQRCode(qrcodeId, questionnaireId)
+}
+```
+
+**Code Locations**:
+- Helper function: `src/services/questionnaireService.ts:411-421`
+- Frontend handling: `src/pages/QuestionnaireEditor/QuestionnaireEditorPage.tsx:486-495`
+
+**Debug Technique**: Use console.log to check format:
+```typescript
+console.log('echo_qrcode type:', typeof qrcode)
+console.log('echo_qrcode isArray:', Array.isArray(qrcode))
+console.log('echo_qrcode value:', qrcode)
+```
+
+**Why This Matters**: This was the root cause of the "No QR codes found" bug. The filter logic checked `Array.isArray(qrcode)` which always returned `false`, causing all tables to be filtered out.
+
+---
+
 ## Common Patterns
 
 ### Supabase Query Patterns
@@ -179,7 +368,9 @@ const { data } = await supabase
   .select('*, echo_qrcode!table_id (*)')  // !table_id specifies the foreign key
   .eq('restaurant_id', restaurantId)
 ```
-**Result**: Each table object has an `echo_qrcode` property (single object, not array)
+**Result**: Each table object has an `echo_qrcode` property as a **single object** (NOT an array!)
+
+**IMPORTANT**: Despite TypeScript types defining it as `EchoQRCode[]`, Supabase returns a single object for 1:1 relationships. Always use the `getQRCodeId()` helper function to handle both formats safely. See Pattern 4 for details.
 
 #### Many:Many Relationship (QR Code → Questionnaires)
 ```typescript
@@ -390,6 +581,25 @@ JavaScript in questionnaire.html
 ---
 
 ## Version History
+
+### v1.2.0 (2025-10-24)
+- **Critical Bug Fix**: Fixed "No QR codes found" error in `assignQuestionnaireToRestaurant()`
+  - Root cause: Supabase returns objects (not arrays) for 1:1 relationships
+  - Added `getQRCodeId()` helper function to handle both object and array formats
+  - Updated frontend code in QuestionnaireEditorPage to use same pattern
+- **Major UX Improvement**: Changed restaurant-wide assignment behavior
+  - Now **skips** tables with existing assignments instead of throwing error
+  - Preserves AB testing configurations (won't overwrite different questionnaires)
+  - Returns detailed statistics: `{ assignedCount, skippedCount, skippedTables }`
+  - Frontend shows informative success messages
+- **Documentation Updates**:
+  - Added complete `questionnaireService.ts` documentation
+  - Added Pattern 3: Restaurant-Wide Assignment with Smart Skip Logic
+  - Added Pattern 4: Supabase 1:1 Relationship Returns Object, Not Array
+  - Updated Common Patterns section with object vs array warnings
+- **Code Locations**:
+  - `src/services/questionnaireService.ts` v2.5.0 → v2.6.0
+  - `src/pages/QuestionnaireEditor/QuestionnaireEditorPage.tsx` v2.5.0 → v2.6.0
 
 ### v1.1.0 (2025-10-24)
 - **Critical Bug Fix**: Updated QR code auto-assignment to be restaurant-aware
