@@ -2,9 +2,9 @@
 // Questionnaire Editor Page - Create and edit questionnaires with flexible question types
 // Features: Dynamic question builder, multiple choice with 2-5 options, text input, drag-and-drop reordering
 // Updated: Complete redesign to support different question types (multiple_choice, text_input) with JSONB storage
-// v2.4.0: Added placeholder text to Label and Value fields; removed default Label value (now empty string)
-//         Label placeholder: "用户看到的答案选项 (例如: 非常满意、满意、一般)"
-//         Value placeholder: "数据标识码,用于分析 (例如: very-satisfied)"
+// v2.4.0: Added placeholder text to Label and Value fields; removed default values for both (now empty strings)
+//         Label placeholder: "答案"
+//         Value placeholder: "数据标识（如：情绪1-5，同义词则留空）"
 // v2.3.1: Fixed popup toast z-index issue by wrapping Snackbar in Portal - now appears above Dialog backdrop
 // v2.3.0: Added dual notification system - messages appear both as inline alerts AND popup toasts for better visibility
 // v2.2.1: Fixed UI not updating immediately after assignment - now refetches assignments to show changes without page refresh
@@ -299,8 +299,8 @@ export default function QuestionnaireEditorPage() {
           // If type changed to multiple_choice and no options, add default options
           if (updated.type === 'multiple_choice' && !updated.options) {
             updated.options = [
-              { label: '', value: '答案1' },
-              { label: '', value: '答案2' },
+              { label: '', value: '' },
+              { label: '', value: '' },
             ]
           }
           return updated
@@ -320,7 +320,7 @@ export default function QuestionnaireEditorPage() {
               ...q,
               options: [
                 ...options,
-                { label: '', value: `答案${options.length + 1}` },
+                { label: '', value: '' },
               ],
             }
           }
@@ -444,9 +444,9 @@ export default function QuestionnaireEditorPage() {
           return
         }
         const table = tables.find((t) => t.id === selectedTableId)
-        if (table?.echo_qrcode) {
+        if (table?.echo_qrcode && table.echo_qrcode.length > 0) {
           await assignQuestionnaireToQRCode(
-            table.echo_qrcode.id,
+            table.echo_qrcode[0].id,
             selectedQuestionnaireForAssignment.id
           )
         } else {
@@ -800,7 +800,7 @@ export default function QuestionnaireEditorPage() {
                                         label: e.target.value,
                                       })
                                     }
-                                    placeholder="用户看到的答案选项 (例如: 非常满意、满意、一般)"
+                                    placeholder="答案"
                                     sx={{ flex: 1 }}
                                   />
                                   <TextField
@@ -812,7 +812,7 @@ export default function QuestionnaireEditorPage() {
                                         value: e.target.value,
                                       })
                                     }
-                                    placeholder="数据标识码,用于分析 (例如: very-satisfied)"
+                                    placeholder="数据标识（如：情绪1-5，同义词则留空）"
                                     sx={{ flex: 1 }}
                                   />
                                   <IconButton

@@ -92,8 +92,8 @@ export default function QRCodeManagementPage() {
       // Generate QR code images for existing QR codes
       const images: Record<string, string> = {}
       for (const table of data) {
-        if (table.echo_qrcode) {
-          images[table.id] = await generateQRCodeImage(table.echo_qrcode.qr_code_value)
+        if (table.echo_qrcode && table.echo_qrcode.length > 0) {
+          images[table.id] = await generateQRCodeImage(table.echo_qrcode[0].qr_code_value)
         }
       }
       setQrCodeImages(images)
@@ -115,7 +115,7 @@ export default function QRCodeManagementPage() {
       setTables((prevTables) =>
         prevTables.map((table) =>
           table.id === tableId
-            ? { ...table, echo_qrcode: qrCodeData }
+            ? { ...table, echo_qrcode: [qrCodeData] }
             : table
         )
       )
@@ -164,7 +164,7 @@ export default function QRCodeManagementPage() {
   }
 
   const handleRegenerateQRCode = async () => {
-    if (!tableToRegenerate || !tableToRegenerate.echo_qrcode) {
+    if (!tableToRegenerate || !tableToRegenerate.echo_qrcode || tableToRegenerate.echo_qrcode.length === 0) {
       return
     }
 
@@ -172,7 +172,7 @@ export default function QRCodeManagementPage() {
       setRegeneratingQRCode(true)
       setError(null)
 
-      const existingQRCode = tableToRegenerate.echo_qrcode
+      const existingQRCode = tableToRegenerate.echo_qrcode[0]
       const { qrCodeData, imageUrl } = await regenerateQRCodeForTable(
         tableToRegenerate.id,
         existingQRCode.id
@@ -182,7 +182,7 @@ export default function QRCodeManagementPage() {
       setTables((prevTables) =>
         prevTables.map((table) =>
           table.id === tableToRegenerate.id
-            ? { ...table, echo_qrcode: qrCodeData }
+            ? { ...table, echo_qrcode: [qrCodeData] }
             : table
         )
       )
