@@ -1,9 +1,13 @@
 <!--
-Version: 5.1.0
+Version: 5.1.1
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v5.1.0 - IMPORTANT: Enhanced answer storage to include value, label, and type
+Changes: v5.1.1 - CRITICAL FIX: Fixed scroll-back issue on mobile
+                  - Improved touch event handling to only prevent pull-to-refresh at container top
+                  - Now correctly checks scrollable-content scroll position instead of window
+                  - Prevents event propagation only when truly at top and pulling down
+         v5.1.0 - IMPORTANT: Enhanced answer storage to include value, label, and type
                   - Multiple choice answers now store: {value, label, type: 'multiple_choice'}
                   - Text input answers now store: {value, type: 'text_input'}
                   - Prevents data loss when option labels change
@@ -699,21 +703,37 @@ Changes: v5.1.0 - IMPORTANT: Enhanced answer storage to include value, label, an
             }
         });
 
-        // Prevent pull-to-refresh on mobile
+        // Prevent pull-to-refresh on mobile (only at top of scrollable content)
         let lastTouchY = 0;
+        let scrollableContent = null;
+
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            scrollableContent = document.querySelector('.scrollable-content');
+        });
 
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 lastTouchY = e.touches[0].clientY;
             }
-        });
+        }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
+            // Only prevent pull-to-refresh if we're in the scrollable content
+            if (!scrollableContent) return;
+
             const touchY = e.touches[0].clientY;
             const touchDiff = touchY - lastTouchY;
             lastTouchY = touchY;
 
-            if (window.scrollY === 0 && touchDiff > 0) {
+            // Only prevent default if:
+            // 1. The scrollable content is at the very top (scrollTop === 0)
+            // 2. User is trying to pull down (touchDiff > 0)
+            // 3. The touch target is within the container
+            const target = e.target;
+            const isInContainer = target.closest('.container');
+
+            if (isInContainer && scrollableContent.scrollTop === 0 && touchDiff > 0) {
                 e.preventDefault();
             }
         }, { passive: false });
