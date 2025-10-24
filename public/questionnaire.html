@@ -116,12 +116,6 @@ Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
             margin-bottom: clamp(4px, 0.8vh, 8px);
         }
 
-        .restaurant-subtitle {
-            font-size: clamp(12px, 1.8vh, 14px);
-            color: rgba(255, 255, 255, 0.7);
-            letter-spacing: 0.5px;
-        }
-
         /* Progress Bar */
         .progress-container {
             padding: clamp(12px, 2vh, 16px) clamp(12px, 2vh, 16px) clamp(10px, 1.5vh, 12px);
@@ -576,7 +570,6 @@ Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
             <!-- Restaurant Header -->
             <div class="restaurant-header">
                 <div class="restaurant-name">野百灵·贵州酸汤</div>
-                <div class="restaurant-subtitle">客户满意度调查</div>
             </div>
 
             <!-- Progress Bar -->
@@ -838,9 +831,8 @@ Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
 
         // Render questionnaire dynamically
         function renderQuestionnaire() {
-            // Update restaurant name and title
+            // Update restaurant name
             document.querySelector('.restaurant-name').textContent = restaurantInfo.name || '餐厅';
-            document.querySelector('.restaurant-subtitle').textContent = selectedQuestionnaire.title || '客户满意度调查';
 
             // Parse questions - use JSONB field if available, fallback to legacy fields
             if (selectedQuestionnaire.questions && selectedQuestionnaire.questions.length > 0) {
