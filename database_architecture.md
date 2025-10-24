@@ -114,16 +114,38 @@ Supports flexible answer storage with JSONB format matching question IDs.
   - `submitted_at` (TIMESTAMP)
   - `customer_identifier` (TEXT, nullable) -- for tracking repeat customers
 
-**JSONB Answers Structure**:
+**JSONB Answers Structure** (v5.1.0+):
 ```json
 {
   "answers": {
-    "q1": "excellent",
-    "q2": "The food was great and the service was excellent!",
-    "q3": "yes"
+    "q1": {
+      "value": "excellent",
+      "label": "非常好",
+      "type": "multiple_choice"
+    },
+    "q2": {
+      "value": "The food was great and the service was excellent!",
+      "type": "text_input"
+    },
+    "q3": {
+      "value": "yes",
+      "label": "是的",
+      "type": "multiple_choice"
+    }
   }
 }
 ```
+
+**Answer Object Fields**:
+- `value`: The selected option value or text input content
+- `label`: (multiple_choice only) The display text shown to user
+- `type`: Question type (`multiple_choice` | `text_input`)
+
+**Why store both value and label?**
+- Preserves user-visible text even if option labels change later
+- Enables accurate historical data analysis
+- Prevents data loss when questionnaires are updated
+
 Keys correspond to `question.id` from the questionnaire's questions array.
 
 ## Relationships Diagram (Many-to-Many for AB Testing)

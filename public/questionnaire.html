@@ -1,9 +1,13 @@
 <!--
-Version: 5.0.0
+Version: 5.1.0
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v5.0.0 - BREAKING CHANGE: Removed legacy field support (question_1/2/3, answer_1/2/3)
+Changes: v5.1.0 - IMPORTANT: Enhanced answer storage to include value, label, and type
+                  - Multiple choice answers now store: {value, label, type: 'multiple_choice'}
+                  - Text input answers now store: {value, type: 'text_input'}
+                  - Prevents data loss when option labels change
+         v5.0.0 - BREAKING CHANGE: Removed legacy field support (question_1/2/3, answer_1/2/3)
                   - Now uses JSONB format exclusively for questions and answers
                   - Removed all fallback logic for legacy fields
                   - Cleaner codebase with single source of truth
@@ -930,6 +934,7 @@ Changes: v5.0.0 - BREAKING CHANGE: Removed legacy field support (question_1/2/3,
                     const button = document.createElement('button');
                     button.className = 'option-button';
                     button.dataset.value = option.value;
+                    button.dataset.label = option.label;  // 也存储label
                     button.textContent = option.label;
                     optionsContainer.appendChild(button);
                 });
@@ -960,6 +965,7 @@ Changes: v5.0.0 - BREAKING CHANGE: Removed legacy field support (question_1/2/3,
                     const screen = this.closest('.screen');
                     const questionId = screen.dataset.questionId;
                     const value = this.dataset.value;
+                    const label = this.dataset.label;
 
                     // Remove selected class from all options in current question
                     screen.querySelectorAll('.option-button').forEach(btn => {
@@ -969,8 +975,12 @@ Changes: v5.0.0 - BREAKING CHANGE: Removed legacy field support (question_1/2/3,
                     // Add selected class to clicked option
                     this.classList.add('selected');
 
-                    // Store answer
-                    answers[questionId] = value;
+                    // Store answer with both value and label
+                    answers[questionId] = {
+                        value: value,
+                        label: label,
+                        type: 'multiple_choice'
+                    };
 
                     // Enable next button
                     document.getElementById('next-button').disabled = false;
@@ -983,8 +993,11 @@ Changes: v5.0.0 - BREAKING CHANGE: Removed legacy field support (question_1/2/3,
                     const questionId = this.dataset.questionId;
                     const value = this.value;
 
-                    // Store answer
-                    answers[questionId] = value;
+                    // Store answer with type for consistency
+                    answers[questionId] = {
+                        value: value,
+                        type: 'text_input'
+                    };
 
                     // Enable next button if not empty
                     document.getElementById('next-button').disabled = value.trim() === '';
