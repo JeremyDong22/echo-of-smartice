@@ -1,159 +1,23 @@
 <!--
-Version: 3.10.3
+Version: 4.0.0
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
-                  - Changed: Calculate by subtraction (inaccurate due to margins/borders)
-                  - To: Directly measure scrollableContent.clientHeight (accurate!)
-                  - Added binary search validation logging
-                  - Shows if final scrollHeight exceeds safeHeight target
-                  - This should fix the 48.94px overflow issue
-         v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
-                  - Check if button exceeds scrollable-content boundary
-                  - Check if button exceeds container boundary
-                  - Previous log only checked navigation overlap (missed clipping)
-                  - Now detects the real issue: buttons clipped by overflow:hidden
-         v3.10.1 - IMPROVED DEBUG: Direct DOM position measurement
-                  - Added checkForClipping() function to measure actual rendered positions
-                  - Measures last option button's bottom vs navigation bar's top
-                  - Reports exact gap or overlap in pixels
-                  - Triggers on page load and when switching questions
-                  - More accurate than calculation-based debugging
-         v3.10.0 - CRITICAL FIX: Resolved iPhone 13 bottom clipping issue
-                  - FIX 1: Calculate screen padding and subtract from availableHeight
-                  - Previously: padding was ignored, causing 19-27px miscalculation
-                  - Now: padding properly accounted for in height calculations
-                  - FIX 2: Lowered CSS minimum constraints for better small-screen support
-                  - Button min-height: 20px → 12px (40% reduction)
-                  - Button padding: 3px/6px → 2px/4px minimums
-                  - Options gap: 1px → 0px minimum
-                  - Border-radius: 6px → 4px minimum
-                  - These changes allow responsive algorithm to compress further on small screens
-                  - Debug logging retained to verify fixes
-         v3.9.1-debug - DEBUG LOGGING: Added detailed padding analysis logs
-                      - Log container height breakdown (header, progress, navigation)
-                      - Log screen padding measurements (top, bottom, total)
-                      - Log actual vs assumed available space
-                      - Calculate and display pixel gap (content being clipped)
-                      - Helps diagnose iPhone 13 bottom clipping issue
-         v3.9.0 - RESPONSIVE LAYOUT: Enhanced button layout and spacing
-                 - Improved flex distribution with equal growth (flex: 1 1 0)
-                 - Better text handling with hyphens and overflow controls
-                 - Centered button text for balanced appearance
-                 - Enhanced visual feedback with smooth transitions and hover effects
-                 - Added gradient overlay for button interactions
-                 - Improved line-height and typography for better readability
-                 - Better space distribution between questions and options
-         v3.8.6 - MAX FILL: Absolute minimal 1px safety margin
-                 - Reduced safety margin to 1px for maximum space utilization
-                 - Content fills available height almost completely (99.9%)
-                 - Maximum font size while preventing border-radius clipping
-                 - Nearly perfect height fill with minimal spacing
-         v3.8.5 - OPTIMIZATION: Minimal safety margin for maximum space utilization
-                 - Reduced safety margin from 8px to 3px for better fill
-                 - Maximizes font size while preventing border-radius clipping
-                 - Content now fills available height more completely
-                 - Minimal bottom spacing while maintaining visual quality
-         v3.8.4 - TUNING: Fixed margin for border clipping prevention
-                 - Use fixed 8px safety margin instead of percentage-based
-                 - Prevents excessive empty space from over-conservative calculation
-                 - Better balance between preventing clipping and maximizing font size
-                 - Ensures last option's border-radius displays without large gaps
-         v3.8.3 - FIX: Prevent border clipping from padding overlap
-                 - Calculate screen padding and add safety margin
-                 - Reduce target height by 20% of padding to prevent bottom border clipping
-                 - Ensures last option's border-radius displays fully
-                 - Content now fits comfortably within padding boundaries
-         v3.8.2 - CRITICAL FIX: Lock container height during measurement
-                 - Set maxHeight during calculation to prevent container expansion
-                 - Content now constrained by fixed height, not expanding container
-                 - Fixes issue where 4-option questions were too small
-                 - More accurate binary search with container constraints
-                 - Properly restore maxHeight and overflow after measurement
-         v3.8.1 - CRITICAL FIX: Accurate measurement for hidden questions
-                 - Temporarily make screens visible during font size calculation
-                 - Fix overflow issue on questions with 4+ options
-                 - Force layout recalculation before measuring (screen.offsetHeight)
-                 - Properly restore display state after measurement
-                 - Now correctly prevents content overflow
-         v3.8.0 - INDEPENDENT QUESTION SIZING: Each question adapts individually
-                 - Removed uniform sizing - each question gets its own optimal font size
-                 - Questions with 3 options use larger fonts (up to 22px)
-                 - Questions with 4-5 options use smaller fonts (auto-compressed)
-                 - Font range adjusted to 7px-22px for better balance
-                 - Uses 90% of available height for safety margin
-                 - More natural appearance with variable sizing
-         v3.7.1 - IMPROVED SPACE UTILIZATION: Better fill algorithm
-                 - Accurate height calculation: total - header - progress - navigation
-                 - Expanded font range to 7px-28px for better space filling
-                 - More precise binary search (0.3px precision vs 0.5px)
-                 - Uses 95% of available height to push limits
-                 - Accounts for all margins/padding in measurements
-         v3.7.0 - INTELLIGENT FONT ADAPTATION: Automatic content-based sizing
-                 - Binary search algorithm finds optimal font size for each question
-                 - System analyzes all questions and uses smallest needed size for consistency
-                 - Questions with fewer options now display larger for better readability
-                 - Questions with more options automatically compress to fit
-                 - All questions maintain uniform appearance with proportional sizing
-         v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
-                 - Progress now only shown via dots (cleaner UI)
-                 - Removed unused CSS for .progress-text
-                 - Updated JavaScript to remove references to current-step/total-steps elements
-         v3.6.1 - FLEX COMPRESSION: All sections can now shrink proportionally to fit content
-                 - Changed flex-shrink from 0 to 1 on header, progress, navigation
-                 - Options gap reduced to min 1px, buttons min height 20px, font 7px
-                 - All elements use flexbox compression to guarantee no overflow
-                 - Screen elements now use flex layout with min-height: 0
+Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
+                  - Removed no-scroll mode: content now scrolls naturally
+                  - Removed complex binary search font adaptation algorithm
+                  - Removed adaptAllQuestions(), calculateOptimalFontSize(), applyFontSizeToQuestion()
+                  - Removed checkForClipping() debug function
+                  - Simplified CSS to use only clamp() for responsive sizing
+                  - Changed .scrollable-content overflow-y from hidden to auto
+                  - Fixed font sizes: 14-18px for options, 18-22px for questions
+                  - Cleaner, more reliable implementation
+                  - Better mobile experience with natural scrolling
+         v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
          v3.6.0 - NO SCROLL MODE: Removed all scrolling, everything auto-scales to fit viewport
-                 - Scrollable-content overflow changed to hidden (no scrolling)
-                 - Ultra-compact font sizes: question text min 9px, options min 7px
-                 - Reduced all spacing minimums: gaps, padding, margins all use aggressive vh scaling
-                 - Container height remains 60vh but content now auto-adapts to fit
-                 - All elements guaranteed to display without scrolling
          v3.5.0 - RESPONSIVE FONT SIZING: All text now uses clamp() for automatic adaptation
-                 - Container: 85% width, 60vh height with 20vh vertical margins
-                 - Font sizes adapt to viewport height to prevent scrolling
-                 - Question text: clamp(14px, 2.5vh, 20px)
-                 - Options: clamp(13px, 2vh, 16px) with responsive padding
-                 - All spacing uses vh units for proportional scaling
-         v3.4.0 - TESTING: 70% width with 24px all-sides padding for maximum background visibility
-                 - Removed all console.log debug statements for cleaner console
-         v3.3.1 - Added proportional padding around glassmorphism container for better visual spacing
          v3.3.0 - MOBILE VIEWPORT FIX: Complete redesign for WeChat browser compatibility
-                 - Fixed viewport height issues (100vh problem) by using dynamic viewport calculation
-                 - Added JavaScript-based --vh custom property for accurate mobile viewport height
-                 - Restructured HTML/CSS to prevent page scrolling in mobile browsers
-                 - Added scrollable content area inside fixed container for long questionnaires
-                 - Reduced all padding and font sizes for better mobile fit
-                 - Added media queries for devices with height < 600px
-                 - Implemented pull-to-refresh prevention for better UX
-                 - Loading and error screens now use absolute positioning to fill container
-                 - Navigation bar now has fixed position with background for better visibility
-         v3.2.0 - CRITICAL FIX: Added !important to .hidden class to fix CSS specificity issue
-                 - Root cause: .loading-screen and .error-screen (display: flex) were overriding
-                   .hidden (display: none) because they appeared later in the CSS
-                 - This caused all three screens to be visible even with .hidden class applied
-                 - Comprehensive console logging helped identify the exact issue
-         v3.1.2 - DEBUG: Added comprehensive console logging to diagnose multi-screen visibility issue
-                 - Added logScreenStates() helper to track visibility of all three screens
-                 - Added step-by-step logging in loadQuestionnaireData() execution
-                 - Enhanced hideLoadingScreen() and showErrorScreen() with detailed logs
-                 - Logs show: URL, QR code ID, data fetch steps, screen state transitions, errors
-         v3.1.1 - CRITICAL FIX: Fixed bug where loading/error/content screens were all visible simultaneously
-                 - Added display:none to content-container initial state (was only using opacity:0)
-                 - Enhanced state management to ensure mutually exclusive screen visibility
-                 - Updated hideLoadingScreen() to explicitly hide error screen
-                 - Updated showErrorScreen() to explicitly hide content container
-         v3.1 - Enhanced loading and error handling with custom messages and animations
-               - Loading text: "野百灵正在赶来的路上" with pulse animation
-               - Error text: "野百灵迷路了..." with shake animation
-               - Added specific error messages for different error types
-               - Improved loading spinner with glow effects and smoother animations
-               - Added technical error details display for debugging
          v3.0 - Added support for different question types (multiple_choice, text_input) with dynamic rendering
-         v2.1 - Fixed loading flash issue, added loading screen with spinner
-         v2.0 - Added Supabase integration, URL parameter parsing, dynamic questionnaire loading
 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -206,7 +70,7 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
         }
 
         .container {
-            /* Testing: 85% width with 20vh vertical spacing */
+            /* 85% width with 20vh vertical spacing */
             width: 85%;
             max-width: 420px;
             /* Flexible vertical spacing using vh units (20vh top + 20vh bottom = 40vh total) */
@@ -227,7 +91,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 24px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            /* Change overflow to auto for internal scrolling */
             overflow: hidden;
             position: relative;
             /* Flex container for proper content layout */
@@ -237,46 +100,40 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
 
         /* Restaurant Header */
         .restaurant-header {
-            /* Ultra-compact padding for no-scroll mode */
-            padding: clamp(4px, 1.5vh, 20px) clamp(6px, 1.5vh, 16px) clamp(3px, 1vh, 16px);
+            padding: clamp(12px, 2vh, 20px) clamp(12px, 2vh, 16px);
             text-align: center;
             background: rgba(255, 255, 255, 0.15);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            /* Allow shrinking to fit content */
-            flex-shrink: 1;
+            flex-shrink: 0;
         }
 
         .restaurant-name {
-            /* Ultra-compact font size */
-            font-size: clamp(10px, 2.5vh, 24px);
+            font-size: clamp(16px, 3vh, 24px);
             font-weight: 700;
             color: rgba(255, 255, 255, 0.95);
             letter-spacing: 1px;
-            line-height: 1.1;
-            margin-bottom: clamp(1px, 0.5vh, 6px);
+            line-height: 1.2;
+            margin-bottom: clamp(4px, 0.8vh, 8px);
         }
 
         .restaurant-subtitle {
-            font-size: clamp(7px, 1.5vh, 13px);
+            font-size: clamp(12px, 1.8vh, 14px);
             color: rgba(255, 255, 255, 0.7);
             letter-spacing: 0.5px;
         }
 
         /* Progress Bar */
         .progress-container {
-            /* Ultra-compact padding for no-scroll mode */
-            padding: clamp(3px, 1.5vh, 16px) clamp(6px, 1.5vh, 16px) clamp(2px, 1vh, 12px);
+            padding: clamp(12px, 2vh, 16px) clamp(12px, 2vh, 16px) clamp(10px, 1.5vh, 12px);
             background: rgba(255, 255, 255, 0.1);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            /* Allow shrinking to fit content */
-            flex-shrink: 1;
+            flex-shrink: 0;
         }
 
         .progress-dots {
             display: flex;
             justify-content: center;
-            gap: clamp(6px, 1.5vh, 12px);
-            margin-bottom: clamp(3px, 1vh, 8px);
+            gap: clamp(8px, 1.5vh, 12px);
         }
 
         .progress-dot {
@@ -292,33 +149,29 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             transform: scale(1.1);
         }
 
-        /* Scrollable content area - NO SCROLL MODE */
+        /* Scrollable content area - RESTORED SCROLLING */
         .scrollable-content {
             flex: 1;
-            overflow-y: hidden;
+            overflow-y: auto;
             overflow-x: hidden;
-            /* No scrolling - content scales to fit */
+            /* Allow natural scrolling */
+            -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
             min-height: 0;
         }
 
-        /* Question Screen - Improved Layout Structure */
+        /* Question Screen - Simplified Layout */
         .screen {
             display: none;
-            /* Ultra-compact padding for no-scroll mode */
-            padding: clamp(4px, 1.5vh, 20px) clamp(6px, 1.5vh, 16px);
+            padding: clamp(16px, 2.5vh, 24px) clamp(16px, 2.5vh, 20px);
             animation: fadeIn 0.4s ease;
-            flex: 1;
-            min-height: 0;
-            overflow: hidden;
+            flex-shrink: 0;
         }
 
         .screen.active {
             display: flex;
             flex-direction: column;
-            /* Improved vertical space distribution */
-            justify-content: flex-start;
         }
 
         @keyframes fadeIn {
@@ -335,74 +188,51 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
         /* Question Header Section */
         .question-number {
             color: rgba(255, 255, 255, 0.7);
-            /* Ultra-compact font size */
-            font-size: clamp(6px, 1.5vh, 14px);
+            font-size: clamp(11px, 1.8vh, 14px);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: clamp(2px, 1vh, 12px);
-            /* Prevent shrinking to maintain readability */
-            flex-shrink: 0;
+            margin-bottom: clamp(8px, 1.5vh, 12px);
         }
 
         .question-text {
-            /* Ultra-compact minimum font size - adapts to container height */
-            font-size: clamp(9px, 2vh, 20px);
+            font-size: clamp(18px, 2.8vh, 22px);
             font-weight: 700;
             color: rgba(255, 255, 255, 0.95);
-            /* Smaller minimum margin */
-            margin-bottom: clamp(4px, 1.5vh, 24px);
+            margin-bottom: clamp(16px, 2.5vh, 24px);
             line-height: 1.3;
-            /* Ensure text wraps properly */
             word-wrap: break-word;
             overflow-wrap: break-word;
-            hyphens: auto;
-            /* Prevent shrinking to maintain readability */
-            flex-shrink: 0;
         }
 
-        /* Options Container - Responsive Grid/Flex Hybrid */
+        /* Options Container - Simple Flex Layout */
         .options {
             display: flex;
             flex-direction: column;
-            /* Responsive gap that scales with content - can go down to 0 for extreme small screens */
-            gap: clamp(0px, 0.8vh, 12px);
-            flex: 1;
-            min-height: 0;
-            overflow: hidden;
-            /* Better vertical distribution */
-            justify-content: flex-start;
+            gap: clamp(8px, 1.5vh, 12px);
         }
 
-        /* Option Buttons - Responsive Design */
+        /* Option Buttons - Fixed Sizing */
         .option-button {
             background: rgba(255, 255, 255, 0.3);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: clamp(4px, 1.5vh, 16px);
-            /* Responsive padding that adapts to content - LOWER minimums for small screens */
-            padding: clamp(2px, 1.2vh, 16px) clamp(4px, 1.5vh, 20px);
-            /* Responsive font size */
-            font-size: clamp(7px, 1.6vh, 16px);
+            border-radius: clamp(12px, 2vh, 16px);
+            padding: clamp(14px, 2vh, 18px) clamp(16px, 2.5vh, 20px);
+            font-size: clamp(14px, 2.2vh, 18px);
             color: rgba(255, 255, 255, 0.95);
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: center;
             font-weight: 500;
-            /* LOWER minimum height from 20px to 12px for better small-screen support */
-            min-height: clamp(12px, 3.5vh, 56px);
+            min-height: clamp(48px, 6vh, 60px);
             display: flex;
             align-items: center;
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
-            /* Text handling for different lengths */
             word-wrap: break-word;
             overflow-wrap: break-word;
-            hyphens: auto;
-            /* Equal flex growth for balanced appearance */
-            flex: 1 1 0;
-            /* Smooth visual feedback */
             position: relative;
             overflow: hidden;
         }
@@ -482,24 +312,20 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
 
         /* Navigation Buttons */
         .navigation {
-            /* Ultra-compact padding for no-scroll mode */
-            padding: clamp(4px, 1.5vh, 16px) clamp(6px, 1.5vh, 16px) clamp(6px, 2vh, 20px);
+            padding: clamp(12px, 2vh, 16px) clamp(12px, 2vh, 16px) clamp(16px, 2.5vh, 20px);
             display: flex;
-            gap: clamp(4px, 1vh, 12px);
-            /* Allow shrinking to fit content */
-            flex-shrink: 1;
+            gap: clamp(8px, 1.5vh, 12px);
+            flex-shrink: 0;
             background: rgba(255, 255, 255, 0.05);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .nav-button {
             flex: 1;
-            /* Ultra-compact padding */
-            padding: clamp(6px, 1.5vh, 16px);
+            padding: clamp(12px, 2vh, 16px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: clamp(8px, 2vh, 12px);
-            /* Ultra-compact font size */
-            font-size: clamp(10px, 1.8vh, 16px);
+            border-radius: clamp(10px, 2vh, 12px);
+            font-size: clamp(14px, 2vh, 16px);
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -536,7 +362,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
         /* Thank You Screen */
         .thank-you {
             text-align: center;
-            /* Reduced padding for mobile */
             padding: 32px 16px;
         }
 
@@ -569,11 +394,9 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            /* Ensure loading screen fills container */
             height: 100%;
             width: 100%;
             padding: 20px;
-            /* Remove min-height to prevent overflow */
             position: absolute;
             top: 0;
             left: 0;
@@ -637,7 +460,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            /* Ensure error screen fills container */
             height: 100%;
             width: 100%;
             padding: 20px;
@@ -706,7 +528,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             display: none;
             opacity: 0;
             transition: opacity 0.4s ease;
-            /* Ensure flex layout when visible */
             flex-direction: column;
             height: 100%;
             width: 100%;
@@ -720,45 +541,12 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
 
         /* Add media query for smaller devices */
         @media screen and (max-height: 600px) {
-            /* Reduce horizontal padding for smaller screens */
             body {
                 padding: 0 16px;
             }
 
             .container {
-                width: 75%;
-                /* No height adjustment needed - fully flexible */
-            }
-
-            .restaurant-header {
-                padding: 16px 12px 12px;
-            }
-
-            .restaurant-name {
-                font-size: 20px;
-            }
-
-            .progress-container {
-                padding: 12px 12px 10px;
-            }
-
-            .screen {
-                padding: 16px 12px;
-            }
-
-            .question-text {
-                font-size: 18px;
-                margin-bottom: 16px;
-            }
-
-            .option-button {
-                padding: 12px 16px;
-                min-height: 48px;
-                font-size: 14px;
-            }
-
-            .navigation {
-                padding: 12px 12px 16px;
+                width: 90%;
             }
         }
     </style>
@@ -804,40 +592,40 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             <div class="scrollable-content">
                 <!-- Question 1 -->
                 <div class="screen active" data-question="1">
-                <div class="question-number">Question 1</div>
-                <div class="question-text">How would you rate your overall dining experience?</div>
-                <div class="options">
-                    <button class="option-button" data-value="excellent">😄 Excellent</button>
-                    <button class="option-button" data-value="good">🙂 Good</button>
-                    <button class="option-button" data-value="average">😐 Average</button>
-                    <button class="option-button" data-value="poor">😞 Poor</button>
+                    <div class="question-number">Question 1</div>
+                    <div class="question-text">How would you rate your overall dining experience?</div>
+                    <div class="options">
+                        <button class="option-button" data-value="excellent">😄 Excellent</button>
+                        <button class="option-button" data-value="good">🙂 Good</button>
+                        <button class="option-button" data-value="average">😐 Average</button>
+                        <button class="option-button" data-value="poor">😞 Poor</button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Question 2 -->
-            <div class="screen" data-question="2">
-                <div class="question-number">Question 2</div>
-                <div class="question-text">How satisfied are you with the food quality?</div>
-                <div class="options">
-                    <button class="option-button" data-value="very-satisfied">⭐⭐⭐⭐⭐ Very Satisfied</button>
-                    <button class="option-button" data-value="satisfied">⭐⭐⭐⭐ Satisfied</button>
-                    <button class="option-button" data-value="neutral">⭐⭐⭐ Neutral</button>
-                    <button class="option-button" data-value="dissatisfied">⭐⭐ Dissatisfied</button>
-                    <button class="option-button" data-value="very-dissatisfied">⭐ Very Dissatisfied</button>
+                <!-- Question 2 -->
+                <div class="screen" data-question="2">
+                    <div class="question-number">Question 2</div>
+                    <div class="question-text">How satisfied are you with the food quality?</div>
+                    <div class="options">
+                        <button class="option-button" data-value="very-satisfied">⭐⭐⭐⭐⭐ Very Satisfied</button>
+                        <button class="option-button" data-value="satisfied">⭐⭐⭐⭐ Satisfied</button>
+                        <button class="option-button" data-value="neutral">⭐⭐⭐ Neutral</button>
+                        <button class="option-button" data-value="dissatisfied">⭐⭐ Dissatisfied</button>
+                        <button class="option-button" data-value="very-dissatisfied">⭐ Very Dissatisfied</button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Question 3 -->
-            <div class="screen" data-question="3">
-                <div class="question-number">Question 3</div>
-                <div class="question-text">Would you recommend this restaurant to friends?</div>
-                <div class="options">
-                    <button class="option-button" data-value="definitely">💯 Definitely</button>
-                    <button class="option-button" data-value="probably">👍 Probably</button>
-                    <button class="option-button" data-value="not-sure">🤔 Not Sure</button>
-                    <button class="option-button" data-value="probably-not">👎 Probably Not</button>
+                <!-- Question 3 -->
+                <div class="screen" data-question="3">
+                    <div class="question-number">Question 3</div>
+                    <div class="question-text">Would you recommend this restaurant to friends?</div>
+                    <div class="options">
+                        <button class="option-button" data-value="definitely">💯 Definitely</button>
+                        <button class="option-button" data-value="probably">👍 Probably</button>
+                        <button class="option-button" data-value="not-sure">🤔 Not Sure</button>
+                        <button class="option-button" data-value="probably-not">👎 Probably Not</button>
+                    </div>
                 </div>
-            </div>
 
                 <!-- Thank You Screen -->
                 <div class="screen thank-you hidden" id="thank-you-screen">
@@ -861,20 +649,14 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
     <script>
         // Dynamic viewport height calculation for mobile browsers
         function setViewportHeight() {
-            // Calculate the actual viewport height
             const vh = window.innerHeight * 0.01;
-            // Set the value in the --vh custom property to the root of the document
             document.documentElement.style.setProperty('--vh', `${vh}px`);
         }
 
-        // Set viewport height on load
         setViewportHeight();
-
-        // Update on resize and orientation change
         window.addEventListener('resize', setViewportHeight);
         window.addEventListener('orientationchange', setViewportHeight);
 
-        // Also update when the page becomes visible (for browser UI changes)
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 setViewportHeight();
@@ -883,7 +665,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
 
         // Prevent pull-to-refresh on mobile
         let lastTouchY = 0;
-        let preventPullToRefresh = false;
 
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
@@ -922,7 +703,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
         let currentStep = 1;
         let totalSteps = 0;
         const answers = {};
-
 
         // Load questionnaire data from database
         async function loadQuestionnaireData() {
@@ -1009,7 +789,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             const errorScreen = document.getElementById('error-screen');
             const contentContainer = document.getElementById('content-container');
 
-            // Ensure only content is visible
             loadingScreen.classList.add('hidden');
             errorScreen.classList.add('hidden');
             contentContainer.classList.add('loaded');
@@ -1023,7 +802,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             const errorMessageEl = document.getElementById('error-message');
             const errorDetailsEl = document.getElementById('error-details');
 
-            // Ensure only error screen is visible
             loadingScreen.classList.add('hidden');
             contentContainer.classList.remove('loaded');
 
@@ -1048,16 +826,13 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
                 technicalDetails = `Error: ${errorMessage}`;
             }
 
-            // Update error message
             errorMessageEl.innerHTML = userMessage;
 
-            // Show technical details for debugging
             if (technicalDetails) {
                 errorDetailsEl.textContent = technicalDetails;
                 errorDetailsEl.classList.remove('hidden');
             }
 
-            // Show error screen
             errorScreen.classList.remove('hidden');
         }
 
@@ -1099,256 +874,11 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             // Generate new question screens
             questions.forEach((question, index) => {
                 const screen = createQuestionScreen(question, index);
-                // Insert before the thank-you screen
                 scrollableContent.insertBefore(screen, document.getElementById('thank-you-screen'));
             });
 
             // Re-initialize event listeners for new buttons
             initializeQuestionListeners();
-
-            // Apply intelligent font size adaptation
-            setTimeout(() => adaptAllQuestions(), 100);
-        }
-
-        // Intelligent font size adaptation system
-        function adaptAllQuestions() {
-            const screens = document.querySelectorAll('.screen[data-question]');
-            const scrollableContent = document.querySelector('.scrollable-content');
-            const mainContainer = document.querySelector('.container');
-
-            if (!scrollableContent || screens.length === 0) return;
-
-            // Calculate screen padding to subtract from available height
-            const firstScreen = screens[0];
-            const screenComputedStyle = window.getComputedStyle(firstScreen);
-            const screenPaddingTop = parseFloat(screenComputedStyle.paddingTop);
-            const screenPaddingBottom = parseFloat(screenComputedStyle.paddingBottom);
-            const screenPadding = screenPaddingTop + screenPaddingBottom;
-
-            // FIX: Directly measure scrollable-content height instead of calculating by subtraction
-            const scrollableHeight = scrollableContent.clientHeight;
-
-            // Available height for content (SUBTRACT screen padding, then apply 90% safety margin)
-            const availableHeight = (scrollableHeight - screenPadding) * 0.90;
-
-            // DEBUG: Log container measurements
-            console.log('=== 容器高度分析 (v3.10.3 - 直接测量) ===');
-            console.log('Scrollable Content实际高度:', scrollableHeight.toFixed(2) + 'px');
-            console.log('Screen padding (上+下):', screenPadding.toFixed(2) + 'px');
-            console.log('减去padding后:', (scrollableHeight - screenPadding).toFixed(2) + 'px');
-            console.log('✅ 计算的availableHeight (90%):', availableHeight.toFixed(2) + 'px');
-
-            // Calculate and apply optimal font size for EACH question independently
-            screens.forEach((screen, index) => {
-                const optimalSize = calculateOptimalFontSize(screen, availableHeight);
-                applyFontSizeToQuestion(screen, optimalSize);
-            });
-
-            // DEBUG: Check for actual clipping by measuring DOM positions
-            setTimeout(() => checkForClipping(), 50);
-        }
-
-        // Check if last option button is clipped by container or navigation
-        function checkForClipping() {
-            const activeScreen = document.querySelector('.screen.active');
-            if (!activeScreen) return;
-
-            const options = activeScreen.querySelectorAll('.option-button');
-            const lastOption = options[options.length - 1];
-            const navigation = document.querySelector('.navigation');
-            const scrollableContent = document.querySelector('.scrollable-content');
-            const container = document.querySelector('.container');
-
-            if (!lastOption || !navigation || !scrollableContent || !container) return;
-
-            // Get actual rendered positions
-            const lastOptionRect = lastOption.getBoundingClientRect();
-            const navigationRect = navigation.getBoundingClientRect();
-            const scrollableRect = scrollableContent.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-
-            console.log('\n=== 🔍 实际渲染位置检测 ===');
-            console.log('Container容器:');
-            console.log('  - 顶部: ' + containerRect.top.toFixed(2) + 'px');
-            console.log('  - 底部: ' + containerRect.bottom.toFixed(2) + 'px');
-            console.log('  - 高度: ' + containerRect.height.toFixed(2) + 'px');
-
-            console.log('\nScrollable Content区域:');
-            console.log('  - 顶部: ' + scrollableRect.top.toFixed(2) + 'px');
-            console.log('  - 底部: ' + scrollableRect.bottom.toFixed(2) + 'px');
-            console.log('  - 高度: ' + scrollableRect.height.toFixed(2) + 'px');
-
-            console.log('\n最后一个选项按钮:');
-            console.log('  - 顶部位置 (top): ' + lastOptionRect.top.toFixed(2) + 'px');
-            console.log('  - 底部位置 (bottom): ' + lastOptionRect.bottom.toFixed(2) + 'px');
-            console.log('  - 高度: ' + lastOptionRect.height.toFixed(2) + 'px');
-
-            console.log('\nNavigation导航栏:');
-            console.log('  - 顶部位置 (top): ' + navigationRect.top.toFixed(2) + 'px');
-            console.log('  - 底部位置 (bottom): ' + navigationRect.bottom.toFixed(2) + 'px');
-
-            // Check if button is clipped by scrollable-content
-            const clippedByScrollable = lastOptionRect.bottom > scrollableRect.bottom;
-            const scrollableOverflow = Math.max(0, lastOptionRect.bottom - scrollableRect.bottom);
-
-            // Check if button is clipped by container
-            const clippedByContainer = lastOptionRect.bottom > containerRect.bottom;
-            const containerOverflow = Math.max(0, lastOptionRect.bottom - containerRect.bottom);
-
-            // Check gap with navigation
-            const gapToNavigation = navigationRect.top - lastOptionRect.bottom;
-
-            console.log('\n❗ 关键检测:');
-            console.log('1. 按钮是否超出scrollable-content?', clippedByScrollable ? '❌ 是！超出 ' + scrollableOverflow.toFixed(2) + 'px' : '✅ 否');
-            console.log('2. 按钮是否超出container?', clippedByContainer ? '❌ 是！超出 ' + containerOverflow.toFixed(2) + 'px' : '✅ 否');
-            console.log('3. 按钮到导航栏的距离:', gapToNavigation.toFixed(2) + 'px');
-
-            if (clippedByScrollable || clippedByContainer) {
-                console.log('\n❌ 问题: 按钮底部被overflow:hidden裁剪了！');
-                console.log('   被裁剪的像素:', Math.max(scrollableOverflow, containerOverflow).toFixed(2) + 'px');
-            } else if (gapToNavigation < 0) {
-                console.log('\n❌ 问题: 按钮与导航栏重叠 ' + Math.abs(gapToNavigation).toFixed(2) + 'px');
-            } else if (gapToNavigation < 5) {
-                console.log('\n⚠️ 警告: 间距过小，接近临界值');
-            } else {
-                console.log('\n✅ 状态: 正常，所有元素位置正确');
-            }
-        }
-
-        // Calculate optimal font size for a single question
-        function calculateOptimalFontSize(screen, availableHeight) {
-            const questionText = screen.querySelector('.question-text');
-            const questionNumber = screen.querySelector('.question-number');
-            const options = screen.querySelectorAll('.option-button');
-
-            if (!questionText) return 12; // Default fallback
-
-            // Temporarily make screen visible for accurate measurement
-            const wasActive = screen.classList.contains('active');
-            const originalDisplay = screen.style.display;
-            const originalMaxHeight = screen.style.maxHeight;
-            const originalOverflow = screen.style.overflow;
-
-            // KEY FIX: Lock the height so content can't expand the container
-            screen.style.display = 'flex';
-            screen.style.maxHeight = `${availableHeight}px`;
-            screen.style.overflow = 'hidden';
-            screen.style.visibility = 'hidden';
-            screen.style.position = 'absolute';
-
-            // DEBUG: Measure screen padding
-            const computedStyle = window.getComputedStyle(screen);
-            const paddingTop = parseFloat(computedStyle.paddingTop);
-            const paddingBottom = parseFloat(computedStyle.paddingBottom);
-            const totalPadding = paddingTop + paddingBottom;
-
-            console.log('\n=== Binary Search 调试 ===');
-            console.log('目标可用高度 (availableHeight):', availableHeight + 'px');
-            console.log('Screen实际padding:', totalPadding.toFixed(2) + 'px');
-
-            // Add absolute minimal safety margin to prevent bottom border clipping
-            // Use 1px margin - maximum fill while preventing radius clipping
-            const safeHeight = availableHeight - 1;
-            console.log('安全高度 (safeHeight = availableHeight - 1):', safeHeight + 'px');
-
-            // Moderate test range: from 7px to 22px for balanced appearance
-            let minSize = 7;
-            let maxSize = 22;
-            let optimalSize = maxSize;
-
-            // Binary search for optimal font size (more precise)
-            while (maxSize - minSize > 0.3) {
-                const testSize = (minSize + maxSize) / 2;
-
-                // Temporarily apply test size with all proportional elements
-                if (questionNumber) {
-                    questionNumber.style.fontSize = `${testSize * 0.7}px`;
-                    questionNumber.style.marginBottom = `${testSize * 0.5}px`;
-                }
-
-                questionText.style.fontSize = `${testSize}px`;
-                questionText.style.marginBottom = `${testSize * 0.8}px`;
-
-                const optionsContainer = screen.querySelector('.options');
-                if (optionsContainer) {
-                    optionsContainer.style.gap = `${testSize * 0.4}px`;
-                }
-
-                options.forEach(opt => {
-                    opt.style.fontSize = `${testSize * 0.85}px`;
-                    opt.style.padding = `${testSize * 0.4}px ${testSize * 0.8}px`;
-                    opt.style.minHeight = `${testSize * 2.5}px`;
-                    opt.style.borderRadius = `${testSize * 0.8}px`;
-                });
-
-                // Force layout recalculation
-                screen.offsetHeight;
-
-                // Measure content height (scrollHeight includes padding)
-                const totalHeight = screen.scrollHeight;
-
-                if (totalHeight <= safeHeight) {
-                    // Fits with safety margin! Try larger
-                    minSize = testSize;
-                    optimalSize = testSize;
-                } else {
-                    // Too big, try smaller
-                    maxSize = testSize;
-                }
-            }
-
-            // Restore original state
-            screen.style.display = originalDisplay;
-            screen.style.maxHeight = originalMaxHeight;
-            screen.style.overflow = originalOverflow;
-            screen.style.visibility = '';
-            screen.style.position = '';
-
-            // DEBUG: Log final result
-            // Apply final size to measure actual scrollHeight
-            screen.style.display = 'flex';
-            applyFontSizeToQuestion(screen, optimalSize);
-            screen.offsetHeight; // Force layout
-            const finalScrollHeight = screen.scrollHeight;
-            screen.style.display = originalDisplay;
-
-            console.log('Binary Search 结果:');
-            console.log('  - 选择的字体大小:', optimalSize.toFixed(2) + 'px');
-            console.log('  - 实际内容高度 (scrollHeight):', finalScrollHeight.toFixed(2) + 'px');
-            console.log('  - 目标安全高度 (safeHeight):', safeHeight.toFixed(2) + 'px');
-            console.log('  - 是否超出?', finalScrollHeight > safeHeight ? '❌ 是！超出 ' + (finalScrollHeight - safeHeight).toFixed(2) + 'px' : '✅ 否');
-
-            return optimalSize;
-        }
-
-        // Apply font size to a single question
-        function applyFontSizeToQuestion(screen, fontSize) {
-            const questionText = screen.querySelector('.question-text');
-            const questionNumber = screen.querySelector('.question-number');
-            const options = screen.querySelectorAll('.option-button');
-            const optionsContainer = screen.querySelector('.options');
-
-            // Apply proportional sizing to this question only
-            if (questionNumber) {
-                questionNumber.style.fontSize = `${fontSize * 0.7}px`;
-                questionNumber.style.marginBottom = `${fontSize * 0.5}px`;
-            }
-
-            if (questionText) {
-                questionText.style.fontSize = `${fontSize}px`;
-                questionText.style.marginBottom = `${fontSize * 0.8}px`;
-            }
-
-            if (optionsContainer) {
-                optionsContainer.style.gap = `${fontSize * 0.4}px`;
-            }
-
-            options.forEach(opt => {
-                opt.style.fontSize = `${fontSize * 0.85}px`;
-                opt.style.padding = `${fontSize * 0.4}px ${fontSize * 0.8}px`;
-                opt.style.minHeight = `${fontSize * 2.5}px`;
-                opt.style.borderRadius = `${fontSize * 0.8}px`;
-            });
         }
 
         // Create a question screen element
@@ -1484,9 +1014,6 @@ Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
             } else {
                 nextButton.textContent = 'Next';
             }
-
-            // DEBUG: Check for clipping after screen change
-            setTimeout(() => checkForClipping(), 50);
         }
 
         // Handle next button click
