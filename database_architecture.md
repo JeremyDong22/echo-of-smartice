@@ -111,8 +111,13 @@ Supports flexible answer storage with JSONB format matching question IDs.
   - `qrcode_id` (UUID, FK)
   - `assignment_id` (UUID, FK) -- tracks which AB test variant was shown
   - `answers` (JSONB) -- Object of answers keyed by question ID (supports unlimited answers)
-  - `submitted_at` (TIMESTAMP)
+  - `submitted_at` (TIMESTAMPTZ) -- **Auto-generated using Beijing time (Asia/Shanghai, UTC+8)**
   - `customer_identifier` (TEXT, nullable) -- for tracking repeat customers
+
+**Timezone Configuration**:
+- `submitted_at` has a default value: `NOW() AT TIME ZONE 'Asia/Shanghai'`
+- All submissions automatically use Beijing time (UTC+8)
+- Client code does NOT send `submitted_at` - database handles it automatically
 
 **JSONB Answers Structure** (v5.1.0+):
 ```json
@@ -801,6 +806,14 @@ DELETE FROM echo_questionnaire WHERE id = 'questionnaire-uuid';
 - All data now uses JSONB format exclusively
 - Verified no data loss (all questionnaires had JSONB data before migration)
 - Updated all code to remove fallback logic
+
+**7. configure_beijing_timezone_for_submitted_at (20251024)**
+- Configured `echo_answers.submitted_at` to use Beijing time (Asia/Shanghai, UTC+8)
+- Set default value: `NOW() AT TIME ZONE 'Asia/Shanghai'`
+- Column type: `TIMESTAMPTZ` (timestamp with time zone)
+- Removed client-side timestamp generation from `questionnaire.html` (v5.2.0)
+- All new submissions automatically use Beijing time
+- Ensures consistent timezone across all submissions
 
 ### Migration Strategy
 
