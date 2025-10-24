@@ -1,9 +1,15 @@
 <!--
-Version: 3.9.1-debug
+Version: 3.9.2
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.9.1-debug - DEBUG LOGGING: Added detailed padding analysis logs
+Changes: v3.9.2 - CRITICAL FIX: Subtract screen padding from availableHeight calculation
+                 - Fixes iPhone 13 bottom clipping issue (19-27px content being cut off)
+                 - Binary search algorithm now uses correct available space
+                 - Screen padding properly accounted for in height calculations
+                 - Responsive system now works correctly on all screen sizes
+                 - Debug logs updated to show padding is being subtracted
+         v3.9.1-debug - DEBUG LOGGING: Added detailed padding analysis logs
                       - Log container height breakdown (header, progress, navigation)
                       - Log screen padding measurements (top, bottom, total)
                       - Log actual vs assumed available space
@@ -1100,8 +1106,16 @@ Changes: v3.9.1-debug - DEBUG LOGGING: Added detailed padding analysis logs
             const progressHeight = progress ? progress.offsetHeight : 0;
             const navigationHeight = navigation ? navigation.offsetHeight : 0;
 
-            // Available height for content (use 90% for safety margin)
-            const availableHeight = (totalHeight - headerHeight - progressHeight - navigationHeight) * 0.90;
+            // CRITICAL FIX: Subtract screen padding from available height
+            // Get padding from first screen element
+            const firstScreen = screens[0];
+            const screenStyle = window.getComputedStyle(firstScreen);
+            const screenPaddingTop = parseFloat(screenStyle.paddingTop);
+            const screenPaddingBottom = parseFloat(screenStyle.paddingBottom);
+            const screenPadding = screenPaddingTop + screenPaddingBottom;
+
+            // Available height for content (use 90% for safety margin, minus screen padding)
+            const availableHeight = (totalHeight - headerHeight - progressHeight - navigationHeight - screenPadding) * 0.90;
 
             // DEBUG: Log container measurements
             console.log('=== 容器高度分析 ===');
@@ -1109,8 +1123,9 @@ Changes: v3.9.1-debug - DEBUG LOGGING: Added detailed padding analysis logs
             console.log('Header高度:', headerHeight + 'px');
             console.log('Progress高度:', progressHeight + 'px');
             console.log('Navigation高度:', navigationHeight + 'px');
-            console.log('剩余空间:', (totalHeight - headerHeight - progressHeight - navigationHeight) + 'px');
-            console.log('计算的availableHeight (90%):', availableHeight + 'px');
+            console.log('Screen padding:', screenPadding.toFixed(2) + 'px');
+            console.log('剩余空间 (减去padding):', (totalHeight - headerHeight - progressHeight - navigationHeight - screenPadding) + 'px');
+            console.log('✅ 计算的availableHeight (90%, 已扣除padding):', availableHeight.toFixed(2) + 'px');
 
             // Calculate and apply optimal font size for EACH question independently
             screens.forEach((screen, index) => {
