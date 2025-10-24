@@ -1,6 +1,7 @@
-// Version: 2.3.0
+// Version: 3.0.0
 // TypeScript types for database tables based on database_architecture.md
-// Updated: Added JSONB support for flexible question types and answer options
+// Updated: Removed legacy question_1/2/3 and answer_1/2/3 fields - now JSONB-only
+// v3.0.0: BREAKING CHANGE - Removed deprecated fields (question_1/2/3, answer_1/2/3). All data now uses JSONB format exclusively.
 // v2.3.0: Fixed TableWithQRCode type - echo_qrcode is a single object (not array) for 1:1 relationships
 // v2.2.0: Updated QuestionnaireAssignment to include restaurant address, city, and assignment_id for deletion
 // v2.1.0: Added QuestionnaireAssignment interface for displaying questionnaire-to-restaurant/table assignments
@@ -45,12 +46,8 @@ export interface EchoQuestionnaire {
   id: string
   title: string
   description?: string
-  // New JSONB field for flexible questions
+  // JSONB field for flexible questions (supports unlimited questions)
   questions: Question[]
-  // Deprecated fields (kept for backward compatibility)
-  question_1: string
-  question_2: string
-  question_3: string
   is_active: boolean
   created_at?: string
   updated_at?: string
@@ -80,12 +77,8 @@ export interface EchoAnswer {
   questionnaire_id: string
   qrcode_id: string
   assignment_id: string
-  // New JSONB field for flexible answers (keyed by question.id)
+  // JSONB field for flexible answers (keyed by question.id, supports unlimited answers)
   answers: Record<string, string>
-  // Deprecated fields (kept for backward compatibility)
-  answer_1?: string
-  answer_2?: string
-  answer_3?: string
   submitted_at: string
   customer_identifier?: string
 }

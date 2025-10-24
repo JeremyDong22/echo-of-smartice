@@ -28,10 +28,7 @@ Supports flexible question types (multiple choice, text input) with JSONB storag
   - `id` (UUID, PK)
   - `title` (TEXT) -- Questionnaire title
   - `description` (TEXT, nullable) -- Optional description
-  - `questions` (JSONB) -- **NEW**: Array of questions with flexible types and options
-  - `question_1` (TEXT) -- **DEPRECATED**: Legacy field, kept for backward compatibility
-  - `question_2` (TEXT) -- **DEPRECATED**: Legacy field, kept for backward compatibility
-  - `question_3` (TEXT) -- **DEPRECATED**: Legacy field, kept for backward compatibility
+  - `questions` (JSONB) -- Array of questions with flexible types and options (supports unlimited questions)
   - `created_at` (TIMESTAMP)
   - `updated_at` (TIMESTAMP)
   - `is_active` (BOOLEAN)
@@ -113,10 +110,7 @@ Supports flexible answer storage with JSONB format matching question IDs.
   - `questionnaire_id` (UUID, FK)
   - `qrcode_id` (UUID, FK)
   - `assignment_id` (UUID, FK) -- tracks which AB test variant was shown
-  - `answers` (JSONB) -- **NEW**: Object of answers keyed by question ID
-  - `answer_1` (TEXT, nullable) -- **DEPRECATED**: Legacy field, kept for backward compatibility
-  - `answer_2` (TEXT, nullable) -- **DEPRECATED**: Legacy field, kept for backward compatibility
-  - `answer_3` (TEXT, nullable) -- **DEPRECATED**: Legacy field, kept for backward compatibility
+  - `answers` (JSONB) -- Object of answers keyed by question ID (supports unlimited answers)
   - `submitted_at` (TIMESTAMP)
   - `customer_identifier` (TEXT, nullable) -- for tracking repeat customers
 
@@ -171,10 +165,10 @@ Keys correspond to `question.id` from the questionnaire's questions array.
 │  ──────────────────────────   │         │  - id (PK)               │
 │  - id (PK)                    │◄────────┤  - title                 │
 │  - qrcode_id (FK)             │ many:1  │  - description           │
-│  - questionnaire_id (FK)      │         │  - question_1 (TEXT)     │
-│  - is_active (BOOLEAN)        │         │  - question_2 (TEXT)     │
-│  - weight (INTEGER)           │         │  - question_3 (TEXT)     │
-│  - assigned_at (TIMESTAMP)    │         │  - is_active             │
+│  - questionnaire_id (FK)      │         │  - questions (JSONB)     │
+│  - is_active (BOOLEAN)        │         │  - is_active             │
+│  - weight (INTEGER)           │         │                          │
+│  - assigned_at (TIMESTAMP)    │         │                          │
 └───────────────────────────────┘         └──────────────────────────┘
              │
              │ Tracks which questionnaire was shown
@@ -188,9 +182,9 @@ Keys correspond to `question.id` from the questionnaire's questions array.
 │  - questionnaire_id (FK)         │
 │  - qrcode_id (FK)                │
 │  - assignment_id (FK) ────────── │ Points to echo_qrcode_questionnaire
-│  - answers (JSONB)               │ NEW: Flexible answer storage
-│  - answer_1/2/3 (LEGACY)         │ Deprecated, kept for compatibility
+│  - answers (JSONB)               │ Flexible answer storage (unlimited)
 │  - submitted_at                  │
+│  - customer_identifier           │
 └──────────────────────────────────┘
 ```
 
@@ -210,7 +204,7 @@ Keys correspond to `question.id` from the questionnaire's questions array.
    │                                      - Random selection based on weights
    │                                      - E.g., 50% get variant A, 50% get variant B
    ▼
-5. Display questionnaire ──────────────► echo_questionnaire (question_1, question_2, question_3)
+5. Display questionnaire ──────────────► echo_questionnaire (questions JSONB array)
    │
    ▼
 6. Customer fills out & submits ───────► echo_answers stores:
@@ -218,7 +212,7 @@ Keys correspond to `question.id` from the questionnaire's questions array.
                                          - which questionnaire (questionnaire_id)
                                          - which QR code (qrcode_id)
                                          - which assignment/variant (assignment_id) ← KEY FOR AB TESTING
-                                         - answers (answer_1, answer_2, answer_3)
+                                         - answers (JSONB object with unlimited fields)
                                          - timestamp (submitted_at)
 ```
 
@@ -778,35 +772,54 @@ DELETE FROM echo_questionnaire WHERE id = 'questionnaire-uuid';
 - Keys correspond to question IDs from questionnaire
 - Legacy `answer_1`, `answer_2`, `answer_3` columns preserved
 
+**6. remove_legacy_question_and_answer_fields (20251024)**
+- **BREAKING CHANGE**: Removed legacy TEXT columns
+- Dropped `question_1`, `question_2`, `question_3` from `echo_questionnaire`
+- Dropped `answer_1`, `answer_2`, `answer_3` from `echo_answers`
+- All data now uses JSONB format exclusively
+- Verified no data loss (all questionnaires had JSONB data before migration)
+- Updated all code to remove fallback logic
+
 ### Migration Strategy
 
-**Backward Compatibility:**
-- Both legacy TEXT fields and new JSONB columns exist simultaneously
-- Old applications can continue using `question_1/2/3` and `answer_1/2/3`
-- New applications should use `questions` JSONB array and `answers` JSONB object
-- No breaking changes to existing integrations
+**v3.0 Migration (2025-10-24):**
+- **BREAKING CHANGE**: Legacy TEXT fields removed
+- Pre-migration check confirmed all questionnaires had JSONB data
+- Migration executed successfully via Supabase API
+- All code updated to use JSONB exclusively
+- No data loss (all data was in JSONB format)
 
-**Data Migration:**
+**Historical (v2.0 Migration):**
 - Existing questionnaires automatically converted to JSONB format as text_input type
-- Existing answers remain in legacy fields, new submissions use both formats
+- Legacy TEXT fields were kept for backward compatibility
 - GIN indexes added for efficient JSONB querying
+- Dual-write strategy ensured data in both formats
 
 ## Database Schema Version
 
-**Current Version:** 2.0 (JSONB-enabled)
-**Previous Version:** 1.0 (Legacy TEXT columns only)
-**Migration Date:** 2025-10-23
+**Current Version:** 3.0 (JSONB-only, legacy fields removed)
+**Previous Version:** 2.0 (JSONB-enabled with backward compatibility)
+**Migration Date:** 2025-10-24
 
 ### Schema Evolution
 
-**v1.0 (Initial):**
+**v1.0 (Initial - 2025-10-23):**
 - Fixed 3-question format with TEXT columns
 - Simple text answers only
 - No question type support
 
-**v2.0 (Current):**
+**v2.0 (JSONB-enabled - 2025-10-23):**
 - Flexible question count with JSONB array
 - Multiple question types (multiple_choice, text_input)
 - Structured answer storage
 - GIN indexes for performance
-- Backward compatibility maintained
+- Backward compatibility maintained (legacy TEXT fields kept)
+
+**v3.0 (Current - 2025-10-24):**
+- **BREAKING CHANGE**: Removed legacy TEXT columns
+- `question_1/2/3` deleted from `echo_questionnaire`
+- `answer_1/2/3` deleted from `echo_answers`
+- JSONB format exclusively
+- Supports truly unlimited questions
+- Cleaner schema, single source of truth
+- Better performance (no redundant writes)

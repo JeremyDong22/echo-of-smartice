@@ -1,7 +1,8 @@
-// Version: 2.7.0
+// Version: 3.0.0
 // Questionnaire Editor Page - Create and edit questionnaires with flexible question types
 // Features: Dynamic question builder, multiple choice with 2-5 options, text input, drag-and-drop reordering
 // Updated: Complete redesign to support different question types (multiple_choice, text_input) with JSONB storage
+// v3.0.0: BREAKING CHANGE - Removed legacy field support (question_1/2/3). Now uses JSONB exclusively. Cleaned up all fallback logic.
 // v2.7.0: Translated all UI text to Chinese for better Chinese user experience
 // v2.6.0: IMPROVED UX - Restaurant-wide assignments now show detailed success messages with assigned/skipped table counts
 // v2.5.0: Added collapsible restaurant sections in assignments with bulk delete functionality
@@ -229,32 +230,8 @@ export default function QuestionnaireEditorPage() {
         description: questionnaire.description || '',
         is_active: questionnaire.is_active,
       })
-      // Load questions from JSONB field, fallback to legacy fields if empty
-      if (questionnaire.questions && questionnaire.questions.length > 0) {
-        setQuestions(questionnaire.questions.sort((a, b) => a.order - b.order))
-      } else {
-        // Convert legacy format to new format
-        setQuestions([
-          {
-            id: 'q1',
-            text: questionnaire.question_1 || '',
-            type: 'text_input',
-            order: 1,
-          },
-          {
-            id: 'q2',
-            text: questionnaire.question_2 || '',
-            type: 'text_input',
-            order: 2,
-          },
-          {
-            id: 'q3',
-            text: questionnaire.question_3 || '',
-            type: 'text_input',
-            order: 3,
-          },
-        ])
-      }
+      // Load questions from JSONB field
+      setQuestions(questionnaire.questions.sort((a, b) => a.order - b.order))
     } else {
       setEditingQuestionnaire(null)
       setFormData({
@@ -396,10 +373,6 @@ export default function QuestionnaireEditorPage() {
         description: formData.description,
         is_active: formData.is_active,
         questions: questions,
-        // Keep legacy fields for backward compatibility (use first 3 questions)
-        question_1: questions[0]?.text || '',
-        question_2: questions[1]?.text || '',
-        question_3: questions[2]?.text || '',
       }
 
       if (editingQuestionnaire) {
@@ -638,14 +611,7 @@ export default function QuestionnaireEditorPage() {
       ) : (
         <Grid container spacing={3}>
           {questionnaires.map((questionnaire) => {
-            const displayQuestions =
-              questionnaire.questions && questionnaire.questions.length > 0
-                ? questionnaire.questions
-                : [
-                    { id: 'q1', text: questionnaire.question_1, type: 'text_input' as QuestionType, order: 1 },
-                    { id: 'q2', text: questionnaire.question_2, type: 'text_input' as QuestionType, order: 2 },
-                    { id: 'q3', text: questionnaire.question_3, type: 'text_input' as QuestionType, order: 3 },
-                  ]
+            const displayQuestions = questionnaire.questions
 
             return (
               <Grid item xs={12} key={questionnaire.id}>

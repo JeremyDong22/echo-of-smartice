@@ -1,6 +1,7 @@
-// Version: 2.7.0
+// Version: 3.0.0
 // Service for managing questionnaires - creating, updating, and assigning questionnaires
 // Updated: Added support for JSONB-based flexible questions with different types and options
+// v3.0.0: BREAKING CHANGE - Removed legacy field support. All questionnaires now use JSONB format exclusively. Updated documentation.
 // v2.7.0: Changed validation - option.value is now optional (can be empty for synonymous options). Only label is required.
 // v2.6.0: IMPROVED UX - assignQuestionnaireToRestaurant() now SKIPS tables with existing assignments instead of throwing error. Returns assignment statistics (assigned/skipped counts).
 // v2.5.0: CRITICAL FIX - Supabase returns echo_qrcode as object (not array) for 1:1 relationships. Added getQRCodeId() helper to handle both formats. Fixes "No QR codes found" error.
@@ -164,7 +165,7 @@ export const getAssignmentsForQuestionnaire = async (
 
 /**
  * Create a new questionnaire
- * Supports both legacy format (question_1, question_2, question_3) and new JSONB format (questions array)
+ * Uses JSONB format (questions array) for unlimited question support
  */
 export const createQuestionnaire = async (
   questionnaire: Omit<EchoQuestionnaire, 'id' | 'created_at' | 'updated_at'>
@@ -190,7 +191,7 @@ export const createQuestionnaire = async (
 
 /**
  * Update an existing questionnaire
- * Supports both legacy format and new JSONB format
+ * Uses JSONB format (questions array) for unlimited question support
  */
 export const updateQuestionnaire = async (
   questionnaireId: string,

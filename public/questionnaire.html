@@ -1,9 +1,15 @@
 <!--
-Version: 4.0.0
+Version: 5.0.0
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
+Changes: v5.0.0 - BREAKING CHANGE: Removed legacy field support (question_1/2/3, answer_1/2/3)
+                  - Now uses JSONB format exclusively for questions and answers
+                  - Removed all fallback logic for legacy fields
+                  - Cleaner codebase with single source of truth
+         v4.0.2 - Added custom thin scrollbar styling (6px width, semi-transparent)
+         v4.0.1 - Removed questionnaire subtitle element from customer view
+         v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
                   - Removed no-scroll mode: content now scrolls naturally
                   - Removed complex binary search font adaptation algorithm
                   - Removed adaptAllQuestions(), calculateOptimalFontSize(), applyFontSizeToQuestion()
@@ -153,6 +159,38 @@ Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
             display: flex;
             flex-direction: column;
             min-height: 0;
+        }
+
+        /* Custom Scrollbar Styling - Mobile optimized */
+        .scrollable-content::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .scrollable-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2.5px;
+        }
+
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 2.5px;
+            animation: scrollbarPulse 2s ease-in-out;
+        }
+
+        /* Scrollbar entrance animation - makes it noticeable on page load */
+        @keyframes scrollbarPulse {
+            0% {
+                background: rgba(255, 255, 255, 0.9);
+                width: 6px;
+            }
+            50% {
+                background: rgba(255, 255, 255, 0.9);
+                width: 6px;
+            }
+            100% {
+                background: rgba(255, 255, 255, 0.6);
+                width: 5px;
+            }
         }
 
         /* Question Screen - Simplified Layout */
@@ -834,17 +872,8 @@ Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
             // Update restaurant name
             document.querySelector('.restaurant-name').textContent = restaurantInfo.name || '餐厅';
 
-            // Parse questions - use JSONB field if available, fallback to legacy fields
-            if (selectedQuestionnaire.questions && selectedQuestionnaire.questions.length > 0) {
-                questions = selectedQuestionnaire.questions.sort((a, b) => a.order - b.order);
-            } else {
-                // Fallback to legacy format
-                questions = [
-                    { id: 'q1', text: selectedQuestionnaire.question_1, type: 'text_input', order: 1 },
-                    { id: 'q2', text: selectedQuestionnaire.question_2, type: 'text_input', order: 2 },
-                    { id: 'q3', text: selectedQuestionnaire.question_3, type: 'text_input', order: 3 },
-                ];
-            }
+            // Parse questions from JSONB field
+            questions = selectedQuestionnaire.questions.sort((a, b) => a.order - b.order);
 
             totalSteps = questions.length;
 
@@ -1042,11 +1071,7 @@ Changes: v4.0.0 - MAJOR ARCHITECTURAL SIMPLIFICATION
                     table_id: tableInfo.id,
                     questionnaire_id: selectedQuestionnaire.id,
                     assignment_id: selectedAssignment.id,
-                    answers: answers, // New JSONB format
-                    // Legacy fields for backward compatibility (use first 3 answers)
-                    answer_1: answers[questions[0]?.id] || '',
-                    answer_2: answers[questions[1]?.id] || '',
-                    answer_3: answers[questions[2]?.id] || '',
+                    answers: answers, // JSONB format - supports unlimited answers
                     submitted_at: new Date().toISOString()
                 };
 

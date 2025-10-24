@@ -1,6 +1,6 @@
 # Service Layer Architecture
 
-**Version: 1.2.0**
+**Version: 2.0.0**
 **Last Updated: 2025-10-24**
 **Purpose: Documents the service layer that connects frontend components to the Supabase backend**
 
@@ -96,7 +96,7 @@ The project uses a **Service Layer Pattern** to abstract all database interactio
 
 #### `getAllQuestionnaires()`
 - Fetches all questionnaires ordered by creation date
-- Returns `EchoQuestionnaire[]` with both JSONB `questions` array and legacy fields
+- Returns `EchoQuestionnaire[]` with JSONB `questions` array (supports unlimited questions)
 
 #### `getQuestionnairesForQRCode(qrcodeId: string)`
 - Fetches active questionnaires assigned to a specific QR code
@@ -106,11 +106,11 @@ The project uses a **Service Layer Pattern** to abstract all database interactio
 #### `createQuestionnaire(questionnaire: Omit<EchoQuestionnaire, 'id' | 'created_at' | 'updated_at'>)`
 - Creates new questionnaire with JSONB `questions` array
 - Validates questions structure (types, options, etc.)
-- Maintains backward compatibility with legacy `question_1/2/3` fields
+- Supports unlimited questions (not limited to 3)
 
 #### `updateQuestionnaire(questionnaireId: string, updates: Partial<EchoQuestionnaire>)`
 - Updates existing questionnaire
-- Supports both JSONB and legacy formats
+- Uses JSONB format exclusively for flexible question count
 
 #### `validateQuestions(questions: Question[])`
 - Validates JSONB question structure before saving
@@ -555,7 +555,7 @@ JavaScript in questionnaire.html
   ↓
 7. User submits answers
   ↓
-8. INSERT into echo_answers with JSONB answers
+8. INSERT into echo_answers with JSONB answers (supports unlimited answer fields)
 ```
 
 **Critical Point**: Step 4 fails if no assignment exists → This is why `generateQRCodeForTable()` must create the assignment!
@@ -581,6 +581,26 @@ JavaScript in questionnaire.html
 ---
 
 ## Version History
+
+### v2.0.0 (2025-10-24)
+- **BREAKING CHANGE**: Removed legacy field support
+  - Deleted `question_1`, `question_2`, `question_3` columns from `echo_questionnaire` table
+  - Deleted `answer_1`, `answer_2`, `answer_3` columns from `echo_answers` table
+  - All questionnaires now use JSONB format exclusively
+  - Supports unlimited questions (no longer limited to 3)
+- **Code Cleanup**:
+  - Removed ~50 lines of fallback logic across codebase
+  - Updated TypeScript types to reflect new schema
+  - Simplified service layer functions
+  - Cleaner, more maintainable codebase
+- **Database Migration**: `remove_legacy_question_and_answer_fields`
+  - Applied: 2025-10-24
+  - Status: Completed successfully
+- **Benefits**:
+  - Single source of truth (JSONB only)
+  - Better performance (no redundant writes)
+  - Simpler code with less technical debt
+  - Future-proof architecture
 
 ### v1.2.0 (2025-10-24)
 - **Critical Bug Fix**: Fixed "No QR codes found" error in `assignQuestionnaireToRestaurant()`
