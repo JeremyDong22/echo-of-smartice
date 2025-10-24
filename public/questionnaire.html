@@ -1,9 +1,15 @@
 <!--
-Version: 3.9.0
+Version: 3.9.1-debug
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.9.0 - RESPONSIVE LAYOUT: Enhanced button layout and spacing
+Changes: v3.9.1-debug - DEBUG LOGGING: Added detailed padding analysis logs
+                      - Log container height breakdown (header, progress, navigation)
+                      - Log screen padding measurements (top, bottom, total)
+                      - Log actual vs assumed available space
+                      - Calculate and display pixel gap (content being clipped)
+                      - Helps diagnose iPhone 13 bottom clipping issue
+         v3.9.0 - RESPONSIVE LAYOUT: Enhanced button layout and spacing
                  - Improved flex distribution with equal growth (flex: 1 1 0)
                  - Better text handling with hyphens and overflow controls
                  - Centered button text for balanced appearance
@@ -1097,6 +1103,15 @@ Changes: v3.9.0 - RESPONSIVE LAYOUT: Enhanced button layout and spacing
             // Available height for content (use 90% for safety margin)
             const availableHeight = (totalHeight - headerHeight - progressHeight - navigationHeight) * 0.90;
 
+            // DEBUG: Log container measurements
+            console.log('=== 容器高度分析 ===');
+            console.log('总容器高度:', totalHeight + 'px');
+            console.log('Header高度:', headerHeight + 'px');
+            console.log('Progress高度:', progressHeight + 'px');
+            console.log('Navigation高度:', navigationHeight + 'px');
+            console.log('剩余空间:', (totalHeight - headerHeight - progressHeight - navigationHeight) + 'px');
+            console.log('计算的availableHeight (90%):', availableHeight + 'px');
+
             // Calculate and apply optimal font size for EACH question independently
             screens.forEach((screen, index) => {
                 const optimalSize = calculateOptimalFontSize(screen, availableHeight);
@@ -1124,6 +1139,21 @@ Changes: v3.9.0 - RESPONSIVE LAYOUT: Enhanced button layout and spacing
             screen.style.overflow = 'hidden';
             screen.style.visibility = 'hidden';
             screen.style.position = 'absolute';
+
+            // DEBUG: Measure screen padding
+            const computedStyle = window.getComputedStyle(screen);
+            const paddingTop = parseFloat(computedStyle.paddingTop);
+            const paddingBottom = parseFloat(computedStyle.paddingBottom);
+            const totalPadding = paddingTop + paddingBottom;
+
+            console.log('\n=== Screen Padding 分析 ===');
+            console.log('availableHeight (设置给screen):', availableHeight + 'px');
+            console.log('screen上padding:', paddingTop.toFixed(2) + 'px');
+            console.log('screen下padding:', paddingBottom.toFixed(2) + 'px');
+            console.log('总padding:', totalPadding.toFixed(2) + 'px');
+            console.log('实际内容可用空间:', (availableHeight - totalPadding).toFixed(2) + 'px');
+            console.log('代码认为的安全高度:', (availableHeight - 1) + 'px');
+            console.log('⚠️ 差距（被遮住的像素）:', (totalPadding - 1).toFixed(2) + 'px');
 
             // Add absolute minimal safety margin to prevent bottom border clipping
             // Use 1px margin - maximum fill while preventing radius clipping
