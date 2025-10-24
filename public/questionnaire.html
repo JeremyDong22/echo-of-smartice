@@ -1,9 +1,15 @@
 <!--
-Version: 3.10.0
+Version: 3.10.1
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.10.0 - CRITICAL FIX: Resolved iPhone 13 bottom clipping issue
+Changes: v3.10.1 - IMPROVED DEBUG: Direct DOM position measurement
+                  - Added checkForClipping() function to measure actual rendered positions
+                  - Measures last option button's bottom vs navigation bar's top
+                  - Reports exact gap or overlap in pixels
+                  - Triggers on page load and when switching questions
+                  - More accurate than calculation-based debugging
+         v3.10.0 - CRITICAL FIX: Resolved iPhone 13 bottom clipping issue
                   - FIX 1: Calculate screen padding and subtract from availableHeight
                   - Previously: padding was ignored, causing 19-27px miscalculation
                   - Now: padding properly accounted for in height calculations
@@ -1137,6 +1143,46 @@ Changes: v3.10.0 - CRITICAL FIX: Resolved iPhone 13 bottom clipping issue
                 const optimalSize = calculateOptimalFontSize(screen, availableHeight);
                 applyFontSizeToQuestion(screen, optimalSize);
             });
+
+            // DEBUG: Check for actual clipping by measuring DOM positions
+            setTimeout(() => checkForClipping(), 50);
+        }
+
+        // Check if last option button is clipped by navigation bar
+        function checkForClipping() {
+            const activeScreen = document.querySelector('.screen.active');
+            if (!activeScreen) return;
+
+            const options = activeScreen.querySelectorAll('.option-button');
+            const lastOption = options[options.length - 1];
+            const navigation = document.querySelector('.navigation');
+
+            if (!lastOption || !navigation) return;
+
+            // Get actual rendered positions
+            const lastOptionRect = lastOption.getBoundingClientRect();
+            const navigationRect = navigation.getBoundingClientRect();
+
+            console.log('\n=== 🔍 实际渲染位置检测 ===');
+            console.log('最后一个选项按钮:');
+            console.log('  - 顶部位置 (top):', lastOptionRect.top.toFixed(2) + 'px');
+            console.log('  - 底部位置 (bottom):', lastOptionRect.bottom.toFixed(2) + 'px');
+            console.log('  - 高度:', lastOptionRect.height.toFixed(2) + 'px');
+            console.log('\nNavigation导航栏:');
+            console.log('  - 顶部位置 (top):', navigationRect.top.toFixed(2) + 'px');
+            console.log('  - 底部位置 (bottom):', navigationRect.bottom.toFixed(2) + 'px');
+
+            const gap = navigationRect.top - lastOptionRect.bottom;
+            console.log('\n间距分析:');
+            console.log('  - 按钮底部到导航栏顶部的距离:', gap.toFixed(2) + 'px');
+
+            if (gap < 0) {
+                console.log('  ❌ 状态: 重叠! 按钮被遮住 ' + Math.abs(gap).toFixed(2) + 'px');
+            } else if (gap < 5) {
+                console.log('  ⚠️ 状态: 间距过小，可能在某些情况下被遮住');
+            } else {
+                console.log('  ✅ 状态: 正常，有足够间距');
+            }
         }
 
         // Calculate optimal font size for a single question
@@ -1397,6 +1443,9 @@ Changes: v3.10.0 - CRITICAL FIX: Resolved iPhone 13 bottom clipping issue
             } else {
                 nextButton.textContent = 'Next';
             }
+
+            // DEBUG: Check for clipping after screen change
+            setTimeout(() => checkForClipping(), 50);
         }
 
         // Handle next button click
