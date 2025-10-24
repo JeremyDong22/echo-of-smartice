@@ -114,11 +114,17 @@ Supports flexible answer storage with JSONB format matching question IDs.
   - `submitted_at` (TIMESTAMPTZ) -- **Auto-generated UTC timestamp** (convert to Beijing time in queries)
   - `customer_identifier` (TEXT, nullable) -- for tracking repeat customers
 
-**Timezone Configuration**:
-- `submitted_at` has a default value: `NOW()` (stores UTC time)
-- Database stores UTC timestamps for consistency and portability
+**Timezone Configuration (Final)**:
+- `submitted_at` has a default value: `now()` (stores standard UTC time)
+- Database stores UTC timestamps for consistency and portability (industry best practice)
 - Client code does NOT send `submitted_at` - database handles it automatically
-- **To query in Beijing time**: `SELECT submitted_at AT TIME ZONE 'Asia/Shanghai' as beijing_time FROM echo_answers`
+- **To query in Beijing time**: Use `submitted_at AT TIME ZONE 'Asia/Shanghai'` in SELECT queries
+
+**Why UTC Storage?**
+- ✅ Technically correct - no misleading timezone markers (e.g., `14:52+00` means UTC 14:52)
+- ✅ Cross-timezone support - easy to convert to any timezone
+- ✅ Industry standard - follows PostgreSQL and international best practices
+- ✅ No confusion - timezone marker (+00) matches the actual time value
 
 **Example Query**:
 ```sql
@@ -130,7 +136,13 @@ SELECT
     answers
 FROM echo_answers
 ORDER BY submitted_at DESC;
+
+-- Example result:
+-- utc_time: 2025-10-24 14:52:27+00
+-- beijing_time: 2025-10-24 22:52:27 (no timezone marker)
 ```
+
+**Note**: Other approaches were considered (adding 8 hours, using timezone conversions) but resulted in misleading timezone markers (e.g., `22:52+00` suggesting UTC when it's actually Beijing time). The current approach avoids this confusion.
 
 **JSONB Answers Structure** (v5.1.0+):
 ```json
@@ -820,14 +832,22 @@ DELETE FROM echo_questionnaire WHERE id = 'questionnaire-uuid';
 - Verified no data loss (all questionnaires had JSONB data before migration)
 - Updated all code to remove fallback logic
 
-**7. configure_submitted_at_timezone (20251024)**
-- Configured `echo_answers.submitted_at` to auto-generate timestamps
-- Set default value: `NOW()` (stores UTC time)
+**7. configure_submitted_at_timezone (20251024) - FINAL**
+- Configured `echo_answers.submitted_at` to auto-generate UTC timestamps
+- Final default value: `now()` (stores standard UTC time)
 - Column type: `TIMESTAMPTZ` (timestamp with time zone)
 - Removed client-side timestamp generation from `questionnaire.html` (v5.2.0)
 - Database stores UTC timestamps for consistency and portability
 - Query-time conversion to Beijing time: `submitted_at AT TIME ZONE 'Asia/Shanghai'`
-- **Note**: Initial configuration attempted `NOW() AT TIME ZONE 'Asia/Shanghai'` but was corrected to `NOW()` for proper UTC storage
+
+**Migration Journey (配置演变过程)**:
+1. ❌ Attempted: `NOW() AT TIME ZONE 'Asia/Shanghai'` - resulted in incorrect timezone conversion
+2. ❌ Attempted: `timezone('Asia/Shanghai', now())` - returned timestamp without timezone, misleading +00 marker
+3. ❌ Attempted: `((now() AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Shanghai')` - reversed logic, subtracted 8 hours
+4. ❌ Attempted: `now() + interval '8 hours'` - correct numbers but misleading timezone marker (22:52+00)
+5. ✅ **Final**: `now()` - stores proper UTC time, convert to Beijing time in queries
+
+**Rationale**: UTC storage is the industry best practice. Alternative approaches (storing Beijing time with +00 marker) were technically incorrect and misleading. The final approach ensures timezone markers accurately reflect the stored time value.
 
 ### Migration Strategy
 
