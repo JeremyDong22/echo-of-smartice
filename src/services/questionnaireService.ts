@@ -1,6 +1,7 @@
-// Version: 2.6.0
+// Version: 2.7.0
 // Service for managing questionnaires - creating, updating, and assigning questionnaires
 // Updated: Added support for JSONB-based flexible questions with different types and options
+// v2.7.0: Changed validation - option.value is now optional (can be empty for synonymous options). Only label is required.
 // v2.6.0: IMPROVED UX - assignQuestionnaireToRestaurant() now SKIPS tables with existing assignments instead of throwing error. Returns assignment statistics (assigned/skipped counts).
 // v2.5.0: CRITICAL FIX - Supabase returns echo_qrcode as object (not array) for 1:1 relationships. Added getQRCodeId() helper to handle both formats. Fixes "No QR codes found" error.
 // v2.4.2: Added detailed console.log debugging to assignQuestionnaireToRestaurant() to diagnose QR code detection issue
@@ -248,9 +249,10 @@ export const validateQuestions = (questions: Question[]): { valid: boolean; erro
 
       for (let j = 0; j < q.options.length; j++) {
         const opt = q.options[j]
-        if (!opt.label || !opt.value) {
-          return { valid: false, error: `Question ${i + 1}, Option ${j + 1}: Label and value are required` }
+        if (!opt.label || opt.label.trim() === '') {
+          return { valid: false, error: `Question ${i + 1}, Option ${j + 1}: Label is required` }
         }
+        // Value is optional - can be empty for synonymous options
       }
     }
   }

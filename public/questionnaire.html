@@ -1,9 +1,68 @@
 <!--
-Version: 3.6.2
+Version: 3.9.0
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
+Changes: v3.9.0 - RESPONSIVE LAYOUT: Enhanced button layout and spacing
+                 - Improved flex distribution with equal growth (flex: 1 1 0)
+                 - Better text handling with hyphens and overflow controls
+                 - Centered button text for balanced appearance
+                 - Enhanced visual feedback with smooth transitions and hover effects
+                 - Added gradient overlay for button interactions
+                 - Improved line-height and typography for better readability
+                 - Better space distribution between questions and options
+         v3.8.6 - MAX FILL: Absolute minimal 1px safety margin
+                 - Reduced safety margin to 1px for maximum space utilization
+                 - Content fills available height almost completely (99.9%)
+                 - Maximum font size while preventing border-radius clipping
+                 - Nearly perfect height fill with minimal spacing
+         v3.8.5 - OPTIMIZATION: Minimal safety margin for maximum space utilization
+                 - Reduced safety margin from 8px to 3px for better fill
+                 - Maximizes font size while preventing border-radius clipping
+                 - Content now fills available height more completely
+                 - Minimal bottom spacing while maintaining visual quality
+         v3.8.4 - TUNING: Fixed margin for border clipping prevention
+                 - Use fixed 8px safety margin instead of percentage-based
+                 - Prevents excessive empty space from over-conservative calculation
+                 - Better balance between preventing clipping and maximizing font size
+                 - Ensures last option's border-radius displays without large gaps
+         v3.8.3 - FIX: Prevent border clipping from padding overlap
+                 - Calculate screen padding and add safety margin
+                 - Reduce target height by 20% of padding to prevent bottom border clipping
+                 - Ensures last option's border-radius displays fully
+                 - Content now fits comfortably within padding boundaries
+         v3.8.2 - CRITICAL FIX: Lock container height during measurement
+                 - Set maxHeight during calculation to prevent container expansion
+                 - Content now constrained by fixed height, not expanding container
+                 - Fixes issue where 4-option questions were too small
+                 - More accurate binary search with container constraints
+                 - Properly restore maxHeight and overflow after measurement
+         v3.8.1 - CRITICAL FIX: Accurate measurement for hidden questions
+                 - Temporarily make screens visible during font size calculation
+                 - Fix overflow issue on questions with 4+ options
+                 - Force layout recalculation before measuring (screen.offsetHeight)
+                 - Properly restore display state after measurement
+                 - Now correctly prevents content overflow
+         v3.8.0 - INDEPENDENT QUESTION SIZING: Each question adapts individually
+                 - Removed uniform sizing - each question gets its own optimal font size
+                 - Questions with 3 options use larger fonts (up to 22px)
+                 - Questions with 4-5 options use smaller fonts (auto-compressed)
+                 - Font range adjusted to 7px-22px for better balance
+                 - Uses 90% of available height for safety margin
+                 - More natural appearance with variable sizing
+         v3.7.1 - IMPROVED SPACE UTILIZATION: Better fill algorithm
+                 - Accurate height calculation: total - header - progress - navigation
+                 - Expanded font range to 7px-28px for better space filling
+                 - More precise binary search (0.3px precision vs 0.5px)
+                 - Uses 95% of available height to push limits
+                 - Accounts for all margins/padding in measurements
+         v3.7.0 - INTELLIGENT FONT ADAPTATION: Automatic content-based sizing
+                 - Binary search algorithm finds optimal font size for each question
+                 - System analyzes all questions and uses smallest needed size for consistency
+                 - Questions with fewer options now display larger for better readability
+                 - Questions with more options automatically compress to fit
+                 - All questions maintain uniform appearance with proportional sizing
+         v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
                  - Progress now only shown via dots (cleaner UI)
                  - Removed unused CSS for .progress-text
                  - Updated JavaScript to remove references to current-step/total-steps elements
@@ -210,7 +269,7 @@ Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
             min-height: 0;
         }
 
-        /* Question Screen */
+        /* Question Screen - Improved Layout Structure */
         .screen {
             display: none;
             /* Ultra-compact padding for no-scroll mode */
@@ -224,6 +283,8 @@ Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
         .screen.active {
             display: flex;
             flex-direction: column;
+            /* Improved vertical space distribution */
+            justify-content: flex-start;
         }
 
         @keyframes fadeIn {
@@ -237,6 +298,7 @@ Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
             }
         }
 
+        /* Question Header Section */
         .question-number {
             color: rgba(255, 255, 255, 0.7);
             /* Ultra-compact font size */
@@ -245,6 +307,8 @@ Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: clamp(2px, 1vh, 12px);
+            /* Prevent shrinking to maintain readability */
+            flex-shrink: 0;
         }
 
         .question-text {
@@ -254,63 +318,100 @@ Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
             color: rgba(255, 255, 255, 0.95);
             /* Smaller minimum margin */
             margin-bottom: clamp(4px, 1.5vh, 24px);
-            line-height: 1.15;
+            line-height: 1.3;
             /* Ensure text wraps properly */
             word-wrap: break-word;
             overflow-wrap: break-word;
+            hyphens: auto;
+            /* Prevent shrinking to maintain readability */
+            flex-shrink: 0;
         }
 
-        /* Option Buttons (Multiple Choice) */
+        /* Options Container - Responsive Grid/Flex Hybrid */
         .options {
             display: flex;
             flex-direction: column;
-            /* Ultra-compact gap for no-scroll mode */
+            /* Responsive gap that scales with content */
             gap: clamp(1px, 0.8vh, 12px);
             flex: 1;
             min-height: 0;
             overflow: hidden;
+            /* Better vertical distribution */
+            justify-content: flex-start;
         }
 
+        /* Option Buttons - Responsive Design */
         .option-button {
             background: rgba(255, 255, 255, 0.3);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.4);
             border-radius: clamp(6px, 1.5vh, 16px);
-            /* Extreme compact padding for no-scroll mode */
+            /* Responsive padding that adapts to content */
             padding: clamp(3px, 1.2vh, 16px) clamp(6px, 1.5vh, 20px);
-            /* Extreme compact minimum font size */
+            /* Responsive font size */
             font-size: clamp(7px, 1.6vh, 16px);
             color: rgba(255, 255, 255, 0.95);
             cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: left;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
             font-weight: 500;
-            /* Extreme compact minimum height - allow more compression */
+            /* Flexible minimum height */
             min-height: clamp(20px, 3.5vh, 56px);
             display: flex;
             align-items: center;
+            justify-content: center;
             -webkit-tap-highlight-color: transparent;
-            /* Ensure text wraps in buttons */
+            /* Text handling for different lengths */
             word-wrap: break-word;
             overflow-wrap: break-word;
-            /* Allow button to shrink if needed */
-            flex-shrink: 1;
+            hyphens: auto;
+            /* Equal flex growth for balanced appearance */
+            flex: 1 1 0;
+            /* Smooth visual feedback */
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Improved button states */
+        .option-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .option-button:hover::before {
+            opacity: 1;
         }
 
         .option-button:active {
-            transform: scale(0.98);
+            transform: scale(0.96);
         }
 
         .option-button:hover {
             background: rgba(255, 255, 255, 0.4);
             border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .option-button.selected {
-            background: rgba(255, 255, 255, 0.5);
-            border-color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.6);
+            border-color: rgba(255, 255, 255, 0.9);
             color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+            transform: scale(1.02);
+        }
+
+        .option-button.selected::before {
+            opacity: 1;
         }
 
         /* Text Input */
@@ -970,6 +1071,148 @@ Changes: v3.6.2 - UI CLEANUP: Removed progress text "1 / 3" display
 
             // Re-initialize event listeners for new buttons
             initializeQuestionListeners();
+
+            // Apply intelligent font size adaptation
+            setTimeout(() => adaptAllQuestions(), 100);
+        }
+
+        // Intelligent font size adaptation system
+        function adaptAllQuestions() {
+            const screens = document.querySelectorAll('.screen[data-question]');
+            const container = document.querySelector('.scrollable-content');
+            const mainContainer = document.querySelector('.container');
+            const header = document.querySelector('.restaurant-header');
+            const progress = document.querySelector('.progress-container');
+            const navigation = document.querySelector('.navigation');
+
+            if (!container || screens.length === 0) return;
+
+            // Calculate actual available height more accurately
+            // Total container height minus fixed sections
+            const totalHeight = mainContainer.clientHeight;
+            const headerHeight = header ? header.offsetHeight : 0;
+            const progressHeight = progress ? progress.offsetHeight : 0;
+            const navigationHeight = navigation ? navigation.offsetHeight : 0;
+
+            // Available height for content (use 90% for safety margin)
+            const availableHeight = (totalHeight - headerHeight - progressHeight - navigationHeight) * 0.90;
+
+            // Calculate and apply optimal font size for EACH question independently
+            screens.forEach((screen, index) => {
+                const optimalSize = calculateOptimalFontSize(screen, availableHeight);
+                applyFontSizeToQuestion(screen, optimalSize);
+            });
+        }
+
+        // Calculate optimal font size for a single question
+        function calculateOptimalFontSize(screen, availableHeight) {
+            const questionText = screen.querySelector('.question-text');
+            const questionNumber = screen.querySelector('.question-number');
+            const options = screen.querySelectorAll('.option-button');
+
+            if (!questionText) return 12; // Default fallback
+
+            // Temporarily make screen visible for accurate measurement
+            const wasActive = screen.classList.contains('active');
+            const originalDisplay = screen.style.display;
+            const originalMaxHeight = screen.style.maxHeight;
+            const originalOverflow = screen.style.overflow;
+
+            // KEY FIX: Lock the height so content can't expand the container
+            screen.style.display = 'flex';
+            screen.style.maxHeight = `${availableHeight}px`;
+            screen.style.overflow = 'hidden';
+            screen.style.visibility = 'hidden';
+            screen.style.position = 'absolute';
+
+            // Add absolute minimal safety margin to prevent bottom border clipping
+            // Use 1px margin - maximum fill while preventing radius clipping
+            const safeHeight = availableHeight - 1;
+
+            // Moderate test range: from 7px to 22px for balanced appearance
+            let minSize = 7;
+            let maxSize = 22;
+            let optimalSize = maxSize;
+
+            // Binary search for optimal font size (more precise)
+            while (maxSize - minSize > 0.3) {
+                const testSize = (minSize + maxSize) / 2;
+
+                // Temporarily apply test size with all proportional elements
+                if (questionNumber) {
+                    questionNumber.style.fontSize = `${testSize * 0.7}px`;
+                    questionNumber.style.marginBottom = `${testSize * 0.5}px`;
+                }
+
+                questionText.style.fontSize = `${testSize}px`;
+                questionText.style.marginBottom = `${testSize * 0.8}px`;
+
+                const optionsContainer = screen.querySelector('.options');
+                if (optionsContainer) {
+                    optionsContainer.style.gap = `${testSize * 0.4}px`;
+                }
+
+                options.forEach(opt => {
+                    opt.style.fontSize = `${testSize * 0.85}px`;
+                    opt.style.padding = `${testSize * 0.4}px ${testSize * 0.8}px`;
+                    opt.style.minHeight = `${testSize * 2.5}px`;
+                    opt.style.borderRadius = `${testSize * 0.8}px`;
+                });
+
+                // Force layout recalculation
+                screen.offsetHeight;
+
+                // Measure content height (scrollHeight includes padding)
+                const totalHeight = screen.scrollHeight;
+
+                if (totalHeight <= safeHeight) {
+                    // Fits with safety margin! Try larger
+                    minSize = testSize;
+                    optimalSize = testSize;
+                } else {
+                    // Too big, try smaller
+                    maxSize = testSize;
+                }
+            }
+
+            // Restore original state
+            screen.style.display = originalDisplay;
+            screen.style.maxHeight = originalMaxHeight;
+            screen.style.overflow = originalOverflow;
+            screen.style.visibility = '';
+            screen.style.position = '';
+
+            return optimalSize;
+        }
+
+        // Apply font size to a single question
+        function applyFontSizeToQuestion(screen, fontSize) {
+            const questionText = screen.querySelector('.question-text');
+            const questionNumber = screen.querySelector('.question-number');
+            const options = screen.querySelectorAll('.option-button');
+            const optionsContainer = screen.querySelector('.options');
+
+            // Apply proportional sizing to this question only
+            if (questionNumber) {
+                questionNumber.style.fontSize = `${fontSize * 0.7}px`;
+                questionNumber.style.marginBottom = `${fontSize * 0.5}px`;
+            }
+
+            if (questionText) {
+                questionText.style.fontSize = `${fontSize}px`;
+                questionText.style.marginBottom = `${fontSize * 0.8}px`;
+            }
+
+            if (optionsContainer) {
+                optionsContainer.style.gap = `${fontSize * 0.4}px`;
+            }
+
+            options.forEach(opt => {
+                opt.style.fontSize = `${fontSize * 0.85}px`;
+                opt.style.padding = `${fontSize * 0.4}px ${fontSize * 0.8}px`;
+                opt.style.minHeight = `${fontSize * 2.5}px`;
+                opt.style.borderRadius = `${fontSize * 0.8}px`;
+            });
         }
 
         // Create a question screen element
