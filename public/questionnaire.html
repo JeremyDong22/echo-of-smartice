@@ -1,9 +1,15 @@
 <!--
-Version: 3.10.2
+Version: 3.10.3
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
+Changes: v3.10.3 - CRITICAL FIX: Use direct measurement instead of subtraction
+                  - Changed: Calculate by subtraction (inaccurate due to margins/borders)
+                  - To: Directly measure scrollableContent.clientHeight (accurate!)
+                  - Added binary search validation logging
+                  - Shows if final scrollHeight exceeds safeHeight target
+                  - This should fix the 48.94px overflow issue
+         v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
                   - Check if button exceeds scrollable-content boundary
                   - Check if button exceeds container boundary
                   - Previous log only checked navigation overlap (missed clipping)
@@ -1107,20 +1113,10 @@ Changes: v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
         // Intelligent font size adaptation system
         function adaptAllQuestions() {
             const screens = document.querySelectorAll('.screen[data-question]');
-            const container = document.querySelector('.scrollable-content');
+            const scrollableContent = document.querySelector('.scrollable-content');
             const mainContainer = document.querySelector('.container');
-            const header = document.querySelector('.restaurant-header');
-            const progress = document.querySelector('.progress-container');
-            const navigation = document.querySelector('.navigation');
 
-            if (!container || screens.length === 0) return;
-
-            // Calculate actual available height more accurately
-            // Total container height minus fixed sections
-            const totalHeight = mainContainer.clientHeight;
-            const headerHeight = header ? header.offsetHeight : 0;
-            const progressHeight = progress ? progress.offsetHeight : 0;
-            const navigationHeight = navigation ? navigation.offsetHeight : 0;
+            if (!scrollableContent || screens.length === 0) return;
 
             // Calculate screen padding to subtract from available height
             const firstScreen = screens[0];
@@ -1129,18 +1125,17 @@ Changes: v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
             const screenPaddingBottom = parseFloat(screenComputedStyle.paddingBottom);
             const screenPadding = screenPaddingTop + screenPaddingBottom;
 
-            // Available height for content (use 90% for safety margin, SUBTRACT screen padding)
-            const availableHeight = (totalHeight - headerHeight - progressHeight - navigationHeight - screenPadding) * 0.90;
+            // FIX: Directly measure scrollable-content height instead of calculating by subtraction
+            const scrollableHeight = scrollableContent.clientHeight;
+
+            // Available height for content (SUBTRACT screen padding, then apply 90% safety margin)
+            const availableHeight = (scrollableHeight - screenPadding) * 0.90;
 
             // DEBUG: Log container measurements
-            console.log('=== 容器高度分析 ===');
-            console.log('总容器高度:', totalHeight + 'px');
-            console.log('Header高度:', headerHeight + 'px');
-            console.log('Progress高度:', progressHeight + 'px');
-            console.log('Navigation高度:', navigationHeight + 'px');
+            console.log('=== 容器高度分析 (v3.10.3 - 直接测量) ===');
+            console.log('Scrollable Content实际高度:', scrollableHeight.toFixed(2) + 'px');
             console.log('Screen padding (上+下):', screenPadding.toFixed(2) + 'px');
-            console.log('剩余空间:', (totalHeight - headerHeight - progressHeight - navigationHeight) + 'px');
-            console.log('减去padding后:', (totalHeight - headerHeight - progressHeight - navigationHeight - screenPadding) + 'px');
+            console.log('减去padding后:', (scrollableHeight - screenPadding).toFixed(2) + 'px');
             console.log('✅ 计算的availableHeight (90%):', availableHeight.toFixed(2) + 'px');
 
             // Calculate and apply optimal font size for EACH question independently
@@ -1247,17 +1242,14 @@ Changes: v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
             const paddingBottom = parseFloat(computedStyle.paddingBottom);
             const totalPadding = paddingTop + paddingBottom;
 
-            console.log('\n=== Screen Padding 分析 (已修复) ===');
-            console.log('availableHeight (已减去padding):', availableHeight + 'px');
-            console.log('screen上padding:', paddingTop.toFixed(2) + 'px');
-            console.log('screen下padding:', paddingBottom.toFixed(2) + 'px');
-            console.log('总padding:', totalPadding.toFixed(2) + 'px');
-            console.log('✅ Padding已在计算时减去，不再有差距问题');
-            console.log('代码认为的安全高度:', (availableHeight - 1) + 'px');
+            console.log('\n=== Binary Search 调试 ===');
+            console.log('目标可用高度 (availableHeight):', availableHeight + 'px');
+            console.log('Screen实际padding:', totalPadding.toFixed(2) + 'px');
 
             // Add absolute minimal safety margin to prevent bottom border clipping
             // Use 1px margin - maximum fill while preventing radius clipping
             const safeHeight = availableHeight - 1;
+            console.log('安全高度 (safeHeight = availableHeight - 1):', safeHeight + 'px');
 
             // Moderate test range: from 7px to 22px for balanced appearance
             let minSize = 7;
@@ -1311,6 +1303,20 @@ Changes: v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
             screen.style.overflow = originalOverflow;
             screen.style.visibility = '';
             screen.style.position = '';
+
+            // DEBUG: Log final result
+            // Apply final size to measure actual scrollHeight
+            screen.style.display = 'flex';
+            applyFontSizeToQuestion(screen, optimalSize);
+            screen.offsetHeight; // Force layout
+            const finalScrollHeight = screen.scrollHeight;
+            screen.style.display = originalDisplay;
+
+            console.log('Binary Search 结果:');
+            console.log('  - 选择的字体大小:', optimalSize.toFixed(2) + 'px');
+            console.log('  - 实际内容高度 (scrollHeight):', finalScrollHeight.toFixed(2) + 'px');
+            console.log('  - 目标安全高度 (safeHeight):', safeHeight.toFixed(2) + 'px');
+            console.log('  - 是否超出?', finalScrollHeight > safeHeight ? '❌ 是！超出 ' + (finalScrollHeight - safeHeight).toFixed(2) + 'px' : '✅ 否');
 
             return optimalSize;
         }
