@@ -1,5 +1,6 @@
-// Version: 1.5.0
+// Version: 1.6.0
 // Service for managing QR codes - generating, fetching, and downloading QR codes
+// v1.6.0: Added deleteTable function to support table deletion with CASCADE handling
 // v1.5.0: Fixed Supabase query syntax - removed !table_id from echo_qrcode relationship query
 // v1.4.0: Updated to use VITE_BASE_URL environment variable for production Vercel deployment
 // v1.3.0: Fixed bug where QR codes auto-assigned questionnaires from different restaurants with same name - now only auto-assigns questionnaires from same restaurant
@@ -219,4 +220,26 @@ export const regenerateQRCodeForTable = async (
 
   // Generate new QR code (automatically assigns first active questionnaire)
   return await generateQRCodeForTable(tableId, baseUrl)
+}
+
+/**
+ * Delete a table and all associated data
+ * WARNING: This action is irreversible!
+ *
+ * IMPORTANT: Deleting a table CASCADE deletes all related data:
+ * - Associated QR code (echo_qrcode)
+ * - Questionnaire assignments (echo_qrcode_questionnaire)
+ * - Customer answers (echo_answers)
+ *
+ * Use this function with caution. All customer feedback data for this table will be permanently lost.
+ */
+export const deleteTable = async (tableId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('echo_table')
+    .delete()
+    .eq('id', tableId)
+
+  if (error) {
+    throw new Error(`Failed to delete table: ${error.message}`)
+  }
 }

@@ -1,7 +1,8 @@
-// Version: 2.6.0
+// Version: 2.7.0
 // Questionnaire Editor Page - Create and edit questionnaires with flexible question types
 // Features: Dynamic question builder, multiple choice with 2-5 options, text input, drag-and-drop reordering
 // Updated: Complete redesign to support different question types (multiple_choice, text_input) with JSONB storage
+// v2.7.0: Translated all UI text to Chinese for better Chinese user experience
 // v2.6.0: IMPROVED UX - Restaurant-wide assignments now show detailed success messages with assigned/skipped table counts
 // v2.5.0: Added collapsible restaurant sections in assignments with bulk delete functionality
 //         - Restaurants are now foldable/expandable by clicking the header
@@ -205,7 +206,7 @@ export default function QuestionnaireEditorPage() {
       )
       setAssignments(assignmentsMap)
     } catch (err) {
-      showNotification(err instanceof Error ? err.message : 'Failed to load data', 'error')
+      showNotification(err instanceof Error ? err.message : '加载数据失败', 'error')
     } finally {
       setLoading(false)
     }
@@ -216,7 +217,7 @@ export default function QuestionnaireEditorPage() {
       const tablesData = await getTablesWithQRCodes(restaurantId)
       setTables(tablesData)
     } catch (err) {
-      showNotification(err instanceof Error ? err.message : 'Failed to load tables', 'error')
+      showNotification(err instanceof Error ? err.message : '加载餐桌失败', 'error')
     }
   }
 
@@ -385,7 +386,7 @@ export default function QuestionnaireEditorPage() {
       // Validate questions
       const validation = validateQuestions(questions)
       if (!validation.valid) {
-        showNotification(validation.error || 'Invalid questions', 'error')
+        showNotification(validation.error || '问题格式无效', 'error')
         return
       }
 
@@ -404,17 +405,17 @@ export default function QuestionnaireEditorPage() {
       if (editingQuestionnaire) {
         // Update existing
         await updateQuestionnaire(editingQuestionnaire.id, questionnaireData)
-        showNotification('Questionnaire updated successfully!', 'success')
+        showNotification('问卷更新成功！', 'success')
       } else {
         // Create new
         await createQuestionnaire(questionnaireData)
-        showNotification('Questionnaire created successfully!', 'success')
+        showNotification('问卷创建成功！', 'success')
       }
 
       await loadData()
       handleCloseEditor()
     } catch (err) {
-      showNotification(err instanceof Error ? err.message : 'Failed to save questionnaire', 'error')
+      showNotification(err instanceof Error ? err.message : '保存问卷失败', 'error')
     } finally {
       setSaving(false)
     }
@@ -443,7 +444,7 @@ export default function QuestionnaireEditorPage() {
 
       if (assignmentScope === 'restaurant') {
         if (!selectedRestaurantId) {
-          showNotification('Please select a restaurant', 'warning')
+          showNotification('请选择餐厅', 'warning')
           return
         }
         const result = await assignQuestionnaireToRestaurant(
@@ -452,10 +453,10 @@ export default function QuestionnaireEditorPage() {
         )
 
         // Show detailed success message
-        let successMessage = `Successfully assigned questionnaire to ${result.assignedCount} table(s)!`
+        let successMessage = `成功分配问卷到 ${result.assignedCount} 个餐桌！`
         if (result.skippedCount > 0) {
           const skippedTableList = result.skippedTables.map(t => t.table_number).join(', ')
-          successMessage += ` (Skipped ${result.skippedCount} table(s) that already have assignments: ${skippedTableList})`
+          successMessage += ` (已跳过 ${result.skippedCount} 个已有分配的餐桌：${skippedTableList})`
         }
 
         // Refresh assignments and close dialog
@@ -474,12 +475,12 @@ export default function QuestionnaireEditorPage() {
       } else {
         // table scope
         if (!selectedTableId) {
-          showNotification('Please select a table', 'warning')
+          showNotification('请选择餐桌', 'warning')
           return
         }
         const table = tables.find((t) => t.id === selectedTableId)
         if (!table) {
-          showNotification('Table not found', 'error')
+          showNotification('未找到餐桌', 'error')
           return
         }
 
@@ -495,7 +496,7 @@ export default function QuestionnaireEditorPage() {
         }
 
         if (!qrcodeId) {
-          showNotification('Table has no QR code, please generate one first', 'warning')
+          showNotification('该餐桌没有二维码，请先生成', 'warning')
           return
         }
 
@@ -516,16 +517,16 @@ export default function QuestionnaireEditorPage() {
       })
 
       handleCloseAssignment()
-      showNotification('Questionnaire assigned successfully!', 'success')
+      showNotification('问卷分配成功！', 'success')
     } catch (err) {
-      showNotification(err instanceof Error ? err.message : 'Failed to assign questionnaire', 'error')
+      showNotification(err instanceof Error ? err.message : '分配问卷失败', 'error')
     } finally {
       setAssigning(false)
     }
   }
 
   const handleRemoveAssignment = async (assignmentId: string, questionnaireId: string, restaurantName: string, tableNumber: string) => {
-    if (!confirm(`Remove this questionnaire assignment from ${restaurantName} - Table ${tableNumber}?`)) {
+    if (!confirm(`确定要移除 ${restaurantName} - 餐桌 ${tableNumber} 的问卷分配吗？`)) {
       return
     }
 
@@ -541,9 +542,9 @@ export default function QuestionnaireEditorPage() {
         return newMap
       })
 
-      showNotification('Assignment removed successfully!', 'success')
+      showNotification('分配移除成功！', 'success')
     } catch (err) {
-      showNotification(err instanceof Error ? err.message : 'Failed to remove assignment', 'error')
+      showNotification(err instanceof Error ? err.message : '移除分配失败', 'error')
     }
   }
 
@@ -567,7 +568,7 @@ export default function QuestionnaireEditorPage() {
   ) => {
     if (
       !confirm(
-        `Remove ALL ${tableCount} questionnaire assignments from ${restaurantName}?\n\nThis will delete assignments for all tables in this restaurant.`
+        `确定要移除 ${restaurantName} 的所有 ${tableCount} 个问卷分配吗？\n\n这将删除该餐厅所有餐桌的分配。`
       )
     ) {
       return
@@ -586,19 +587,19 @@ export default function QuestionnaireEditorPage() {
       })
 
       showNotification(
-        `Successfully removed ${removedCount} assignment${removedCount !== 1 ? 's' : ''} from ${restaurantName}!`,
+        `成功从 ${restaurantName} 移除了 ${removedCount} 个分配！`,
         'success'
       )
     } catch (err) {
       showNotification(
-        err instanceof Error ? err.message : 'Failed to remove restaurant assignments',
+        err instanceof Error ? err.message : '移除餐厅分配失败',
         'error'
       )
     }
   }
 
   const renderQuestionTypeLabel = (type: QuestionType) => {
-    return type === 'multiple_choice' ? 'Multiple Choice' : 'Text Input'
+    return type === 'multiple_choice' ? '多选题' : '文本输入'
   }
 
   return (
@@ -606,17 +607,17 @@ export default function QuestionnaireEditorPage() {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Questionnaire Editor
+          问卷编辑器
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Create and edit questionnaires with flexible question types
+          创建和编辑具有灵活问题类型的问卷
         </Typography>
       </Box>
 
       {/* Add New Button */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenEditor()}>
-          Create New Questionnaire
+          创建新问卷
         </Button>
       </Box>
 
@@ -633,7 +634,7 @@ export default function QuestionnaireEditorPage() {
           <CircularProgress />
         </Box>
       ) : questionnaires.length === 0 ? (
-        <Alert severity="info">No questionnaires found. Create your first one!</Alert>
+        <Alert severity="info">未找到问卷。创建您的第一个问卷吧！</Alert>
       ) : (
         <Grid container spacing={3}>
           {questionnaires.map((questionnaire) => {
@@ -660,7 +661,7 @@ export default function QuestionnaireEditorPage() {
                         )}
                       </Box>
                       <Chip
-                        label={questionnaire.is_active ? 'Active' : 'Inactive'}
+                        label={questionnaire.is_active ? '启用' : '禁用'}
                         color={questionnaire.is_active ? 'success' : 'default'}
                         size="small"
                       />
@@ -668,7 +669,7 @@ export default function QuestionnaireEditorPage() {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Questions ({displayQuestions.length}):
+                        问题 ({displayQuestions.length}):
                       </Typography>
                       <List dense>
                         {displayQuestions
@@ -691,7 +692,7 @@ export default function QuestionnaireEditorPage() {
                                 }
                                 secondary={
                                   question.type === 'multiple_choice' && question.options
-                                    ? `Options: ${question.options.map((o) => o.label).join(', ')}`
+                                    ? `选项：${question.options.map((o) => o.label).join('、')}`
                                     : null
                                 }
                                 primaryTypographyProps={{ variant: 'body2', component: 'div' }}
@@ -705,14 +706,14 @@ export default function QuestionnaireEditorPage() {
                     {/* Assignments Section */}
                     <Box sx={{ mb: 2, bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Assignments:
+                        已分配：
                       </Typography>
                       {(() => {
                         const questionnaireAssignments = assignments.get(questionnaire.id) || []
                         if (questionnaireAssignments.length === 0) {
                           return (
                             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                              Not assigned to any tables
+                              未分配到任何餐桌
                             </Typography>
                           )
                         }
@@ -759,7 +760,7 @@ export default function QuestionnaireEditorPage() {
 
                                     {/* Table count badge */}
                                     <Chip
-                                      label={`${assignment.tables.length} table${assignment.tables.length !== 1 ? 's' : ''}`}
+                                      label={`${assignment.tables.length} 个餐桌`}
                                       size="small"
                                       sx={{ height: 20, fontSize: '0.7rem' }}
                                     />
@@ -778,7 +779,7 @@ export default function QuestionnaireEditorPage() {
                                         )
                                       }}
                                       sx={{ ml: 1 }}
-                                      title="Delete all assignments for this restaurant"
+                                      title="删除该餐厅的所有分配"
                                     >
                                       <DeleteSweep fontSize="small" />
                                     </IconButton>
@@ -799,7 +800,7 @@ export default function QuestionnaireEditorPage() {
                                         >
                                           <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                             <TableBar fontSize="small" sx={{ fontSize: '0.9rem' }} />
-                                            Table {table.table_number}
+                                            餐桌 {table.table_number}
                                           </Typography>
                                           <IconButton
                                             size="small"
@@ -811,7 +812,7 @@ export default function QuestionnaireEditorPage() {
                                               table.table_number
                                             )}
                                             sx={{ ml: 1 }}
-                                            title="Delete this table assignment"
+                                            title="删除该餐桌的分配"
                                           >
                                             <Delete fontSize="small" />
                                           </IconButton>
@@ -833,14 +834,14 @@ export default function QuestionnaireEditorPage() {
                         startIcon={<Edit />}
                         onClick={() => handleOpenEditor(questionnaire)}
                       >
-                        Edit
+                        编辑
                       </Button>
                       <Button
                         size="small"
                         startIcon={<Assignment />}
                         onClick={() => handleOpenAssignment(questionnaire)}
                       >
-                        Assign
+                        分配
                       </Button>
                     </Box>
                   </CardContent>
@@ -854,20 +855,20 @@ export default function QuestionnaireEditorPage() {
       {/* Editor Dialog */}
       <Dialog open={editorOpen} onClose={handleCloseEditor} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingQuestionnaire ? 'Edit Questionnaire' : 'Create New Questionnaire'}
+          {editingQuestionnaire ? '编辑问卷' : '创建新问卷'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* Basic Info */}
             <TextField
-              label="Questionnaire Title"
+              label="问卷标题"
               fullWidth
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
             />
             <TextField
-              label="Description (optional)"
+              label="描述（可选）"
               fullWidth
               multiline
               rows={2}
@@ -881,7 +882,7 @@ export default function QuestionnaireEditorPage() {
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                 />
               }
-              label="Active"
+              label="启用"
             />
 
             <Divider />
@@ -889,14 +890,14 @@ export default function QuestionnaireEditorPage() {
             {/* Questions Builder */}
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Questions</Typography>
+                <Typography variant="h6">问题</Typography>
                 <Button
                   size="small"
                   startIcon={<Add />}
                   onClick={handleAddQuestion}
                   variant="outlined"
                 >
-                  Add Question
+                  添加问题
                 </Button>
               </Box>
 
@@ -908,7 +909,7 @@ export default function QuestionnaireEditorPage() {
                       <Box sx={{ flex: 1 }}>
                         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                           <TextField
-                            label={`Question ${index + 1}`}
+                            label={`问题 ${index + 1}`}
                             fullWidth
                             value={question.text}
                             onChange={(e) =>
@@ -917,7 +918,7 @@ export default function QuestionnaireEditorPage() {
                             required
                           />
                           <FormControl sx={{ minWidth: 150 }}>
-                            <InputLabel>Type</InputLabel>
+                            <InputLabel>类型</InputLabel>
                             <Select
                               value={question.type}
                               onChange={(e) =>
@@ -925,10 +926,10 @@ export default function QuestionnaireEditorPage() {
                                   type: e.target.value as QuestionType,
                                 })
                               }
-                              label="Type"
+                              label="类型"
                             >
-                              <MenuItem value="text_input">Text Input</MenuItem>
-                              <MenuItem value="multiple_choice">Multiple Choice</MenuItem>
+                              <MenuItem value="text_input">文本输入</MenuItem>
+                              <MenuItem value="multiple_choice">多选题</MenuItem>
                             </Select>
                           </FormControl>
                         </Box>
@@ -937,14 +938,14 @@ export default function QuestionnaireEditorPage() {
                         {question.type === 'multiple_choice' && (
                           <Box sx={{ ml: 2, mt: 2 }}>
                             <Typography variant="subtitle2" gutterBottom>
-                              Answer Options (2-5)
+                              答案选项（2-5个）
                             </Typography>
                             <Stack spacing={1}>
                               {question.options?.map((option, optIndex) => (
                                 <Box key={optIndex} sx={{ display: 'flex', gap: 1 }}>
                                   <TextField
                                     size="small"
-                                    label="Label"
+                                    label="标签"
                                     value={option.label}
                                     onChange={(e) =>
                                       handleUpdateOption(question.id, optIndex, {
@@ -956,7 +957,7 @@ export default function QuestionnaireEditorPage() {
                                   />
                                   <TextField
                                     size="small"
-                                    label="Value"
+                                    label="值"
                                     value={option.value}
                                     onChange={(e) =>
                                       handleUpdateOption(question.id, optIndex, {
@@ -983,7 +984,7 @@ export default function QuestionnaireEditorPage() {
                                   onClick={() => handleAddOption(question.id)}
                                   sx={{ alignSelf: 'flex-start' }}
                                 >
-                                  Add Option
+                                  添加选项
                                 </Button>
                               )}
                             </Stack>
@@ -1006,47 +1007,47 @@ export default function QuestionnaireEditorPage() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseEditor}>Cancel</Button>
+          <Button onClick={handleCloseEditor}>取消</Button>
           <Button
             onClick={handleSaveQuestionnaire}
             variant="contained"
             disabled={saving || !formData.title || questions.length === 0}
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? '保存中...' : '保存'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Assignment Dialog */}
       <Dialog open={assignmentDialogOpen} onClose={handleCloseAssignment} maxWidth="sm" fullWidth>
-        <DialogTitle>Assign Questionnaire</DialogTitle>
+        <DialogTitle>分配问卷</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Typography variant="body2" color="text.secondary">
-              Assign "{selectedQuestionnaireForAssignment?.title}" to:
+              将"{selectedQuestionnaireForAssignment?.title}"分配到：
             </Typography>
 
             {/* Scope Selection */}
             <FormControl fullWidth>
-              <InputLabel>Assignment Scope</InputLabel>
+              <InputLabel>分配范围</InputLabel>
               <Select
                 value={assignmentScope}
                 onChange={(e) => {
                   setAssignmentScope(e.target.value as AssignmentScope)
                   setSelectedTableId('')
                 }}
-                label="Assignment Scope"
+                label="分配范围"
               >
                 <MenuItem value="restaurant">
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <RestaurantIcon fontSize="small" />
-                    Entire Restaurant (All Tables)
+                    整个餐厅（所有餐桌）
                   </Box>
                 </MenuItem>
                 <MenuItem value="table">
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <TableBar fontSize="small" />
-                    Specific Table
+                    指定餐桌
                   </Box>
                 </MenuItem>
               </Select>
@@ -1054,11 +1055,11 @@ export default function QuestionnaireEditorPage() {
 
             {/* Restaurant Selection */}
             <FormControl fullWidth>
-              <InputLabel>Select Restaurant</InputLabel>
+              <InputLabel>选择餐厅</InputLabel>
               <Select
                 value={selectedRestaurantId}
                 onChange={(e) => setSelectedRestaurantId(e.target.value)}
-                label="Select Restaurant"
+                label="选择餐厅"
               >
                 {restaurants.map((restaurant) => (
                   <MenuItem key={restaurant.id} value={restaurant.id}>
@@ -1073,17 +1074,17 @@ export default function QuestionnaireEditorPage() {
             {/* Table Selection (only if scope is table) */}
             {assignmentScope === 'table' && selectedRestaurantId && (
               <FormControl fullWidth>
-                <InputLabel>Select Table</InputLabel>
+                <InputLabel>选择餐桌</InputLabel>
                 <Select
                   value={selectedTableId}
                   onChange={(e) => setSelectedTableId(e.target.value)}
-                  label="Select Table"
+                  label="选择餐桌"
                 >
                   {tables.map((table) => (
                     <MenuItem key={table.id} value={table.id}>
-                      Table {table.table_number}
+                      餐桌 {table.table_number}
                       {!table.echo_qrcode && (
-                        <Chip label="No QR Code" size="small" color="warning" sx={{ ml: 1 }} />
+                        <Chip label="无二维码" size="small" color="warning" sx={{ ml: 1 }} />
                       )}
                     </MenuItem>
                   ))}
@@ -1093,7 +1094,7 @@ export default function QuestionnaireEditorPage() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseAssignment}>Cancel</Button>
+          <Button onClick={handleCloseAssignment}>取消</Button>
           <Button
             onClick={handleAssignQuestionnaire}
             variant="contained"
@@ -1103,7 +1104,7 @@ export default function QuestionnaireEditorPage() {
               (assignmentScope === 'table' && !selectedTableId)
             }
           >
-            {assigning ? 'Assigning...' : 'Confirm Assignment'}
+            {assigning ? '分配中...' : '确认分配'}
           </Button>
         </DialogActions>
       </Dialog>

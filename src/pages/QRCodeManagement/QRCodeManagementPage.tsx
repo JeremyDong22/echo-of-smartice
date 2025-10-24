@@ -1,6 +1,9 @@
-// Version: 2.3.0
+// Version: 2.6.0
 // QR Code Management Page - Generate and manage QR codes for restaurant tables
-// Features: Restaurant selection, table list, QR code generation, regeneration, download functionality
+// Features: Restaurant selection, table list, QR code generation, regeneration, download functionality, table deletion
+// v2.6.0: Improved button layout - regenerate and delete buttons now side-by-side in one row
+// v2.5.0: Added delete table functionality with confirmation dialog and CASCADE delete handling
+// v2.4.0: Removed input format restrictions - now supports Chinese characters and any format for table numbers
 // v2.3.0: Fixed critical bug - echo_qrcode is a single object (not array) for 1:1 relationships, updated all references
 // v2.2.0: Fixed bug - hasQRCode check now properly validates echo_qrcode array length instead of just checking truthiness
 // v2.1.0: Changed restaurant display format to show name, address, and city for better distinction
@@ -26,7 +29,7 @@ import {
   DialogActions,
   TextField,
 } from '@mui/material'
-import { QrCode, Download, Add, Refresh, Warning } from '@mui/icons-material'
+import { QrCode, Download, Add, Refresh, Warning, Delete } from '@mui/icons-material'
 import type { Restaurant, TableWithQRCode } from '../../types/database'
 import { getAllRestaurants } from '../../services/restaurantService'
 import {
@@ -36,6 +39,7 @@ import {
   downloadQRCode,
   createTable,
   regenerateQRCodeForTable,
+  deleteTable,
 } from '../../services/qrcodeService'
 
 export default function QRCodeManagementPage() {
@@ -49,13 +53,18 @@ export default function QRCodeManagementPage() {
 
   // Dialog for adding new table
   const [addTableDialogOpen, setAddTableDialogOpen] = useState(false)
-  const [newTableNumber, setNewTableNumber] = useState<string>('A1')
+  const [newTableNumber, setNewTableNumber] = useState<string>('')
   const [creatingTable, setCreatingTable] = useState(false)
 
   // Dialog for regenerating QR code
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false)
   const [tableToRegenerate, setTableToRegenerate] = useState<TableWithQRCode | null>(null)
   const [regeneratingQRCode, setRegeneratingQRCode] = useState(false)
+
+  // Dialog for deleting table
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [tableToDelete, setTableToDelete] = useState<TableWithQRCode | null>(null)
+  const [deletingTable, setDeletingTable] = useState(false)
 
   // Load restaurants on mount
   useEffect(() => {
@@ -153,7 +162,7 @@ export default function QRCodeManagementPage() {
 
       // Close dialog and reset form
       setAddTableDialogOpen(false)
-      setNewTableNumber('A1')
+      setNewTableNumber('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create table')
     } finally {
@@ -201,6 +210,42 @@ export default function QRCodeManagementPage() {
       setError(err instanceof Error ? err.message : 'Failed to regenerate QR code')
     } finally {
       setRegeneratingQRCode(false)
+    }
+  }
+
+  const handleOpenDeleteDialog = (table: TableWithQRCode) => {
+    setTableToDelete(table)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteTable = async () => {
+    if (!tableToDelete) {
+      return
+    }
+
+    try {
+      setDeletingTable(true)
+      setError(null)
+
+      await deleteTable(tableToDelete.id)
+
+      // Remove table from local state
+      setTables((prevTables) => prevTables.filter((table) => table.id !== tableToDelete.id))
+
+      // Remove QR code image from local state
+      setQrCodeImages((prev) => {
+        const updated = { ...prev }
+        delete updated[tableToDelete.id]
+        return updated
+      })
+
+      // Close dialog
+      setDeleteDialogOpen(false)
+      setTableToDelete(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete table')
+    } finally {
+      setDeletingTable(false)
     }
   }
 
@@ -308,15 +353,26 @@ export default function QRCodeManagementPage() {
 
                         <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
                           {!hasQRCode ? (
-                            <Button
-                              variant="contained"
-                              startIcon={isGenerating ? <CircularProgress size={20} /> : <QrCode />}
-                              onClick={() => handleGenerateQRCode(table.id)}
-                              disabled={isGenerating}
-                              fullWidth
-                            >
-                              {isGenerating ? '生成中...' : '生成二维码'}
-                            </Button>
+                            <>
+                              <Button
+                                variant="contained"
+                                startIcon={isGenerating ? <CircularProgress size={20} /> : <QrCode />}
+                                onClick={() => handleGenerateQRCode(table.id)}
+                                disabled={isGenerating}
+                                fullWidth
+                              >
+                                {isGenerating ? '生成中...' : '生成二维码'}
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                color="error"
+                                startIcon={<Delete />}
+                                onClick={() => handleOpenDeleteDialog(table)}
+                                fullWidth
+                              >
+                                删除桌位
+                              </Button>
+                            </>
                           ) : (
                             <>
                               <Button
@@ -327,15 +383,26 @@ export default function QRCodeManagementPage() {
                               >
                                 下载二维码
                               </Button>
-                              <Button
-                                variant="outlined"
-                                color="warning"
-                                startIcon={<Refresh />}
-                                onClick={() => handleOpenRegenerateDialog(table)}
-                                fullWidth
-                              >
-                                重新生成
-                              </Button>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+                                <Button
+                                  variant="outlined"
+                                  color="warning"
+                                  startIcon={<Refresh />}
+                                  onClick={() => handleOpenRegenerateDialog(table)}
+                                  sx={{ flex: 1 }}
+                                >
+                                  重新生成
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  color="error"
+                                  startIcon={<Delete />}
+                                  onClick={() => handleOpenDeleteDialog(table)}
+                                  sx={{ flex: 1 }}
+                                >
+                                  删除桌位
+                                </Button>
+                              </Box>
                             </>
                           )}
                         </Box>
@@ -356,13 +423,13 @@ export default function QRCodeManagementPage() {
           <TextField
             autoFocus
             margin="dense"
-            label="桌号 (格式: A1, B2, C3)"
+            label="桌号"
             type="text"
             fullWidth
             value={newTableNumber}
-            onChange={(e) => setNewTableNumber(e.target.value.toUpperCase())}
-            placeholder="A1"
-            helperText="请输入字母+数字组合，例如：A1, B2, C3"
+            onChange={(e) => setNewTableNumber(e.target.value)}
+            placeholder="例如：包间123、A1、8号桌"
+            helperText="支持中文、字母、数字及任意组合，同一餐厅内不能重复"
           />
         </DialogContent>
         <DialogActions>
@@ -370,7 +437,7 @@ export default function QRCodeManagementPage() {
           <Button
             onClick={handleAddTable}
             variant="contained"
-            disabled={creatingTable}
+            disabled={creatingTable || !newTableNumber.trim()}
           >
             {creatingTable ? '创建中...' : '确认添加'}
           </Button>
@@ -434,6 +501,71 @@ export default function QRCodeManagementPage() {
             startIcon={regeneratingQRCode ? <CircularProgress size={20} /> : <Refresh />}
           >
             {regeneratingQRCode ? '重新生成中...' : '确认重新生成'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Table Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deletingTable && setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning color="error" />
+          删除桌位确认
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <strong>警告：此操作不可撤销！所有数据将永久删除！</strong>
+          </Alert>
+          <Typography variant="body1" paragraph>
+            您即将删除 <strong>桌号 {tableToDelete?.table_number}</strong>。
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            删除桌位将会永久删除以下所有数据：
+          </Typography>
+          <Box component="ul" sx={{ color: 'text.secondary', pl: 2 }}>
+            <li>
+              <Typography variant="body2" color="error.main" fontWeight="bold">
+                桌位记录
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2" color="error.main" fontWeight="bold">
+                关联的二维码
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2" color="error.main" fontWeight="bold">
+                所有问卷分配记录
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2" color="error.main" fontWeight="bold">
+                该桌位的所有顾客反馈数据
+              </Typography>
+            </li>
+          </Box>
+          <Alert severity="error" sx={{ mt: 2 }}>
+            <Typography variant="body2" fontWeight="bold">
+              删除后无法恢复！请确认您真的要删除这个桌位及其所有历史数据。
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deletingTable}>
+            取消
+          </Button>
+          <Button
+            onClick={handleDeleteTable}
+            variant="contained"
+            color="error"
+            disabled={deletingTable}
+            startIcon={deletingTable ? <CircularProgress size={20} /> : <Delete />}
+          >
+            {deletingTable ? '删除中...' : '确认删除'}
           </Button>
         </DialogActions>
       </Dialog>
