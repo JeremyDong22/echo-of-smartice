@@ -1,9 +1,14 @@
 <!--
-Version: 3.10.1
+Version: 3.10.2
 Updated: 2025-10-24
 Purpose: Mobile questionnaire for WeChat browser with dynamic question type support
 Features: Multiple choice and text input questions, dynamic rendering from JSONB, glassmorphism UI
-Changes: v3.10.1 - IMPROVED DEBUG: Direct DOM position measurement
+Changes: v3.10.2 - FIX DEBUG: Detect overflow:hidden clipping
+                  - Check if button exceeds scrollable-content boundary
+                  - Check if button exceeds container boundary
+                  - Previous log only checked navigation overlap (missed clipping)
+                  - Now detects the real issue: buttons clipped by overflow:hidden
+         v3.10.1 - IMPROVED DEBUG: Direct DOM position measurement
                   - Added checkForClipping() function to measure actual rendered positions
                   - Measures last option button's bottom vs navigation bar's top
                   - Reports exact gap or overlap in pixels
@@ -1148,7 +1153,7 @@ Changes: v3.10.1 - IMPROVED DEBUG: Direct DOM position measurement
             setTimeout(() => checkForClipping(), 50);
         }
 
-        // Check if last option button is clipped by navigation bar
+        // Check if last option button is clipped by container or navigation
         function checkForClipping() {
             const activeScreen = document.querySelector('.screen.active');
             if (!activeScreen) return;
@@ -1156,32 +1161,62 @@ Changes: v3.10.1 - IMPROVED DEBUG: Direct DOM position measurement
             const options = activeScreen.querySelectorAll('.option-button');
             const lastOption = options[options.length - 1];
             const navigation = document.querySelector('.navigation');
+            const scrollableContent = document.querySelector('.scrollable-content');
+            const container = document.querySelector('.container');
 
-            if (!lastOption || !navigation) return;
+            if (!lastOption || !navigation || !scrollableContent || !container) return;
 
             // Get actual rendered positions
             const lastOptionRect = lastOption.getBoundingClientRect();
             const navigationRect = navigation.getBoundingClientRect();
+            const scrollableRect = scrollableContent.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
 
             console.log('\n=== 🔍 实际渲染位置检测 ===');
-            console.log('最后一个选项按钮:');
-            console.log('  - 顶部位置 (top):', lastOptionRect.top.toFixed(2) + 'px');
-            console.log('  - 底部位置 (bottom):', lastOptionRect.bottom.toFixed(2) + 'px');
-            console.log('  - 高度:', lastOptionRect.height.toFixed(2) + 'px');
+            console.log('Container容器:');
+            console.log('  - 顶部: ' + containerRect.top.toFixed(2) + 'px');
+            console.log('  - 底部: ' + containerRect.bottom.toFixed(2) + 'px');
+            console.log('  - 高度: ' + containerRect.height.toFixed(2) + 'px');
+
+            console.log('\nScrollable Content区域:');
+            console.log('  - 顶部: ' + scrollableRect.top.toFixed(2) + 'px');
+            console.log('  - 底部: ' + scrollableRect.bottom.toFixed(2) + 'px');
+            console.log('  - 高度: ' + scrollableRect.height.toFixed(2) + 'px');
+
+            console.log('\n最后一个选项按钮:');
+            console.log('  - 顶部位置 (top): ' + lastOptionRect.top.toFixed(2) + 'px');
+            console.log('  - 底部位置 (bottom): ' + lastOptionRect.bottom.toFixed(2) + 'px');
+            console.log('  - 高度: ' + lastOptionRect.height.toFixed(2) + 'px');
+
             console.log('\nNavigation导航栏:');
-            console.log('  - 顶部位置 (top):', navigationRect.top.toFixed(2) + 'px');
-            console.log('  - 底部位置 (bottom):', navigationRect.bottom.toFixed(2) + 'px');
+            console.log('  - 顶部位置 (top): ' + navigationRect.top.toFixed(2) + 'px');
+            console.log('  - 底部位置 (bottom): ' + navigationRect.bottom.toFixed(2) + 'px');
 
-            const gap = navigationRect.top - lastOptionRect.bottom;
-            console.log('\n间距分析:');
-            console.log('  - 按钮底部到导航栏顶部的距离:', gap.toFixed(2) + 'px');
+            // Check if button is clipped by scrollable-content
+            const clippedByScrollable = lastOptionRect.bottom > scrollableRect.bottom;
+            const scrollableOverflow = Math.max(0, lastOptionRect.bottom - scrollableRect.bottom);
 
-            if (gap < 0) {
-                console.log('  ❌ 状态: 重叠! 按钮被遮住 ' + Math.abs(gap).toFixed(2) + 'px');
-            } else if (gap < 5) {
-                console.log('  ⚠️ 状态: 间距过小，可能在某些情况下被遮住');
+            // Check if button is clipped by container
+            const clippedByContainer = lastOptionRect.bottom > containerRect.bottom;
+            const containerOverflow = Math.max(0, lastOptionRect.bottom - containerRect.bottom);
+
+            // Check gap with navigation
+            const gapToNavigation = navigationRect.top - lastOptionRect.bottom;
+
+            console.log('\n❗ 关键检测:');
+            console.log('1. 按钮是否超出scrollable-content?', clippedByScrollable ? '❌ 是！超出 ' + scrollableOverflow.toFixed(2) + 'px' : '✅ 否');
+            console.log('2. 按钮是否超出container?', clippedByContainer ? '❌ 是！超出 ' + containerOverflow.toFixed(2) + 'px' : '✅ 否');
+            console.log('3. 按钮到导航栏的距离:', gapToNavigation.toFixed(2) + 'px');
+
+            if (clippedByScrollable || clippedByContainer) {
+                console.log('\n❌ 问题: 按钮底部被overflow:hidden裁剪了！');
+                console.log('   被裁剪的像素:', Math.max(scrollableOverflow, containerOverflow).toFixed(2) + 'px');
+            } else if (gapToNavigation < 0) {
+                console.log('\n❌ 问题: 按钮与导航栏重叠 ' + Math.abs(gapToNavigation).toFixed(2) + 'px');
+            } else if (gapToNavigation < 5) {
+                console.log('\n⚠️ 警告: 间距过小，接近临界值');
             } else {
-                console.log('  ✅ 状态: 正常，有足够间距');
+                console.log('\n✅ 状态: 正常，所有元素位置正确');
             }
         }
 
