@@ -2,7 +2,7 @@
 // Main application component with routing and authentication
 // v2.0.0: Added authentication with protected routes and password recovery handling
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { useEffect } from 'react'
@@ -45,30 +45,48 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Password recovery listener - redirects to reset page when password recovery link is clicked
 function PasswordRecoveryListener() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, _session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // User clicked password reset link - redirect to reset password page
-        navigate('/reset-password')
+        // User clicked password reset link - redirect to reset password page immediately
+        console.log('PASSWORD_RECOVERY event detected, redirecting to /reset-password')
+        navigate('/reset-password', { replace: true })
       }
     })
 
     return () => subscription.unsubscribe()
   }, [navigate])
 
+  // Also check URL hash on mount for recovery type
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('type=recovery')) {
+      console.log('Recovery token detected in URL, navigating to /reset-password')
+      navigate('/reset-password', { replace: true })
+    }
+  }, [location, navigate])
+
   return null
 }
 
 function AppRoutes() {
+  const { session } = useAuth()
+
   return (
     <>
       <PasswordRecoveryListener />
       <Routes>
         {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={session ? <Navigate to="/qrcode-management" replace /> : <LoginPage />}
+        />
+
+        {/* Password reset - accessible to both authenticated and unauthenticated users */}
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Protected admin routes */}
