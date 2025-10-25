@@ -4,9 +4,9 @@
 
 EchoOfSmartICE uses **Supabase Authentication** to protect the admin panel with a single shared credential. This approach provides enterprise-grade security without the complexity of multi-user management.
 
-**Version:** 2.0.0
-**Last Updated:** 2025-10-25
-**Status:** ✅ Fully Implemented and Tested
+**Version:** 2.1.0
+**Last Updated:** 2025-10-26
+**Status:** ✅ Fully Implemented and Tested with Password Recovery
 
 ---
 
@@ -144,22 +144,42 @@ function SomeComponent() {
 ```
 
 #### 2. **LoginPage** (`src/components/Auth/LoginPage.tsx`)
-Simple email + password form with Material-UI components.
+Email + password form with "Forgot Password?" functionality and consistent background design.
 
-**Features:**
+**Features (v1.2.0):**
+- **Localized UI**: All text in Chinese (管理员登录, 邮箱, 密码, etc.)
+- **Glassmorphism design**: Semi-transparent card with backdrop blur matching admin panel
+- **Background image**: Geometric pattern (`/background.png`) for visual consistency
 - Email input field (type="email", required, autofocus)
 - Password input field with show/hide toggle (Visibility icon)
 - Submit button with loading state
+- **"Forgot Password?" button**: Opens dialog to request password reset email
 - Error message display (Alert component)
 - Responsive centered layout (Container maxWidth="sm")
+
+**Forgot Password Dialog:**
+- Email input with validation
+- "Send Reset Email" button
+- Success message after email sent
+- Cancel/Close buttons
+- Prevents sending if email is empty
 
 **UX Flow:**
 ```
 1. User enters email + password
-2. Click "Admin Login" button
-3. Loading state shows (button disabled, text changes to "Signing in...")
+2. Click "登录" button
+3. Loading state shows (button disabled, text changes to "登录中...")
 4. On success: Redirect to /qrcode-management
 5. On error: Show error message, clear password field
+
+--- OR ---
+
+1. User clicks "忘记密码？" button
+2. Dialog opens with email input
+3. User enters email and clicks "发送重置邮件"
+4. Success message: "密码重置邮件已发送！请检查您的收件箱..."
+5. User checks email and clicks reset link
+6. Redirects to /reset-password page (see flow below)
 ```
 
 **Key Code:**
@@ -182,25 +202,42 @@ const handleSubmit = async (e: React.FormEvent) => {
 ```
 
 #### 3. **ResetPasswordPage** (`src/components/Auth/ResetPasswordPage.tsx`)
-Password reset form shown after user clicks email recovery link.
+Password reset form with session verification and consistent design.
 
-**Features:**
+**Features (v1.4.0):**
+- **Localized UI**: All text in Chinese (重置密码, 新密码, 确认新密码, etc.)
+- **Glassmorphism design**: Matching LoginPage visual style
+- **Background image**: Same geometric pattern for consistency
+- **Session verification**: Waits up to 10 seconds for Supabase to create recovery session
+- **Loading state**: Shows "正在验证重置链接..." while checking session
 - New password input field with validation (min 6 characters)
 - Confirm password field with matching validation
 - Show/hide password toggle
-- Success message with auto-redirect to login
-- Error handling
+- Success message with auto-redirect to login (2 seconds)
+- Comprehensive error messages in Chinese
 
 **UX Flow:**
 ```
 1. User clicks password recovery email link
-2. PASSWORD_RECOVERY event fires → redirects to /reset-password
-3. User enters new password (twice)
-4. Validates: min 6 chars, passwords match
-5. Calls updatePassword() from authService
-6. Success: Show success message, redirect to /login after 2 seconds
-7. Error: Show error message, allow retry
+2. App receives URL with #access_token=...&type=recovery
+3. PasswordRecoveryListener detects recovery token → redirects to /reset-password (with hash preserved!)
+4. ResetPasswordPage shows loading: "正在验证重置链接..."
+5. Supabase creates recovery session from URL token (1-2 seconds)
+6. Form appears with password input fields
+7. User enters new password (twice)
+8. Validates:
+   - "密码长度至少为 6 个字符"
+   - "两次输入的密码不匹配"
+9. Calls updatePassword() from authService
+10. Success: "密码更新成功！正在跳转到登录页面..."
+11. Auto-redirect to /login after 2 seconds
+12. Error: Show error message, allow retry
 ```
+
+**Critical Implementation Notes:**
+- **URL hash preservation**: Uses `navigate(`/reset-password${hash}`)` to prevent token loss
+- **Infinite loop prevention**: Only redirects if `currentPath !== '/reset-password'`
+- **Session timeout**: If no session after 10 seconds, shows friendly error message
 
 **Key Code:**
 ```typescript
@@ -449,20 +486,35 @@ The password reset flow is **fully implemented and tested** as of v2.0.0.
 
 **Why needed?** Supabase validates redirect URLs for security. Without this, password reset emails will fail to redirect properly.
 
+**Important Change (v2.1.0):** The `sendPasswordResetEmail()` function now redirects directly to `/reset-password` instead of the root path:
+```typescript
+// src/services/authService.ts (v1.1.0)
+const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: `${window.location.origin}/reset-password`  // Direct to reset page
+})
+```
+
+This eliminates navigation issues and ensures the URL hash (containing the recovery token) is preserved.
+
 #### Step 2: Send Password Recovery Email
 
-**Option A: Via Supabase Dashboard** (Recommended for single admin account)
+**Option A: Via Login Page** (✅ Implemented in v2.1.0)
+```bash
+1. Go to http://localhost:3000/login (or https://echo.smartice.ai/login)
+2. Click "忘记密码？" button below the login button
+3. Dialog opens with email input field
+4. Enter your email address
+5. Click "发送重置邮件"
+6. Success message: "密码重置邮件已发送！请检查您的收件箱并按照说明操作。"
+7. Check your email for the reset link
+```
+
+**Option B: Via Supabase Dashboard** (For admin access without email)
 ```bash
 1. Go to Authentication → Users
 2. Find your admin user
 3. Click "..." → "Send password recovery"
 4. Email will be sent to the user's email address
-```
-
-**Option B: Via Login Page** (Future enhancement - requires "Forgot Password?" button)
-```typescript
-// Not yet implemented - can add a "Forgot Password?" link to LoginPage
-await sendPasswordResetEmail(email)
 ```
 
 #### Step 3: User Clicks Email Link
@@ -574,8 +626,20 @@ User returns to `/login` and signs in with the new password.
 - **Fix**: Check `src/App.tsx` - ensure `<PasswordRecoveryListener />` is inside `<Router>` and `<AuthProvider>`
 
 **Issue: "Auth session missing" error on /reset-password page**
-- **Cause**: User navigated to /reset-password directly without clicking email link
-- **Fix**: User must click the email link to establish recovery session
+- **Cause 1**: User navigated to /reset-password directly without clicking email link
+- **Fix 1**: User must click the email link to establish recovery session
+- **Cause 2**: URL hash (containing recovery token) was lost during navigation
+- **Fix 2**: ✅ FIXED in v2.1.0 - PasswordRecoveryListener now preserves hash: `navigate(\`/reset-password${hash}\`)`
+
+**Issue: Infinite redirect loop - password reset page keeps reloading**
+- **Cause**: PasswordRecoveryListener redirects on every location change, even when already on /reset-password
+- **Fix**: ✅ FIXED in v2.4.0 - Added path check: `if (hash.includes('type=recovery') && currentPath !== '/reset-password')`
+
+**Issue: Reset link redirects to /qrcode-management instead of /reset-password**
+- **Cause 1**: ProtectedRoute redirects authenticated users before PasswordRecoveryListener can run
+- **Fix 1**: ✅ FIXED in v2.0.1 - Check `isPasswordRecovery` flag before redirecting: `session && !isPasswordRecovery`
+- **Cause 2**: Redirect URL in reset email points to root path
+- **Fix 2**: ✅ FIXED in v1.1.0 - authService now uses: `redirectTo: ${window.location.origin}/reset-password`
 
 **Issue: Password update fails with "New password should be different from the old password"**
 - **Cause**: User is trying to set the same password
@@ -878,6 +942,32 @@ function MyComponent() {
 ---
 
 ## Changelog
+
+### v2.1.0 (2025-10-26)
+- ✅ **Critical Bug Fixes for Password Reset Flow**
+  - Fixed URL hash loss during navigation (token preservation)
+  - Fixed infinite redirect loop on /reset-password page
+  - Fixed premature redirect to /qrcode-management during password recovery
+  - Updated `sendPasswordResetEmail()` to redirect directly to `/reset-password`
+
+- ✅ **"Forgot Password?" Feature on Login Page**
+  - Added dialog with email input for password reset requests
+  - Success/error message display
+  - Full Chinese localization
+
+- ✅ **UI/UX Improvements**
+  - Localized all authentication pages to Chinese
+  - Added geometric background pattern to LoginPage and ResetPasswordPage
+  - Implemented glassmorphism design for visual consistency
+  - Added session verification loading state ("正在验证重置链接...")
+  - Improved error messages with Chinese localization
+
+- ✅ **Component Version Updates**
+  - LoginPage v1.2.0: Chinese localization + background + "Forgot Password?" button
+  - ResetPasswordPage v1.4.0: Chinese localization + background + session verification
+  - App.tsx v2.4.0: URL hash preservation + infinite loop fix
+  - authService.ts v1.1.0: Direct `/reset-password` redirect
+  - AuthContext v1.2.0: Cleaned up debug logging
 
 ### v2.0.0 (2025-10-25)
 - ✅ Complete authentication system implementation

@@ -1,5 +1,10 @@
-// Version: 2.0.0
+// Version: 2.4.0
 // Main application component with routing and authentication
+// v2.4.0: Fixed infinite loop in password recovery redirect
+// v2.3.0: CRITICAL FIX - Preserve URL hash during navigation to prevent token loss
+// v2.2.0: Added verbose console logging for debugging password recovery flow
+// v2.1.0: Added direct root path redirect for password recovery to preserve URL hash
+// v2.0.1: Fixed password recovery redirect - prevent premature redirect to qrcode-management
 // v2.0.0: Added authentication with protected routes and password recovery handling
 
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
@@ -53,7 +58,6 @@ function PasswordRecoveryListener() {
     } = supabase.auth.onAuthStateChange((event, _session) => {
       if (event === 'PASSWORD_RECOVERY') {
         // User clicked password reset link - redirect to reset password page immediately
-        console.log('PASSWORD_RECOVERY event detected, redirecting to /reset-password')
         navigate('/reset-password', { replace: true })
       }
     })
@@ -64,9 +68,13 @@ function PasswordRecoveryListener() {
   // Also check URL hash on mount for recovery type
   useEffect(() => {
     const hash = window.location.hash
-    if (hash.includes('type=recovery')) {
-      console.log('Recovery token detected in URL, navigating to /reset-password')
-      navigate('/reset-password', { replace: true })
+    const currentPath = location.pathname
+
+    // Only redirect if we're NOT already on /reset-password to avoid infinite loop
+    if (hash.includes('type=recovery') && currentPath !== '/reset-password') {
+      // IMPORTANT: Preserve the hash when navigating to avoid losing the recovery token
+      const targetUrl = `/reset-password${hash}`
+      navigate(targetUrl, { replace: true })
     }
   }, [location, navigate])
 
@@ -76,14 +84,31 @@ function PasswordRecoveryListener() {
 function AppRoutes() {
   const { session } = useAuth()
 
+  // Check if this is a password recovery flow (check URL hash for type=recovery)
+  const isPasswordRecovery = window.location.hash.includes('type=recovery')
+
   return (
     <>
       <PasswordRecoveryListener />
       <Routes>
+        {/* Catch root path with recovery token and redirect immediately - preserve hash */}
+        {isPasswordRecovery && (
+          <Route
+            path="/"
+            element={<Navigate to={`/reset-password${window.location.hash}`} replace />}
+          />
+        )}
+
         {/* Public routes */}
         <Route
           path="/login"
-          element={session ? <Navigate to="/qrcode-management" replace /> : <LoginPage />}
+          element={
+            session && !isPasswordRecovery ? (
+              <Navigate to="/qrcode-management" replace />
+            ) : (
+              <LoginPage />
+            )
+          }
         />
 
         {/* Password reset - accessible to both authenticated and unauthenticated users */}

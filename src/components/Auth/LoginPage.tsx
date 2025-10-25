@@ -1,5 +1,6 @@
-// Version: 1.1.0
+// Version: 1.2.0
 // Login page component
+// v1.2.0: Localized to Chinese and added background image for consistent design
 // v1.1.0: Added "Forgot Password?" functionality with email dialog
 
 import React, { useState } from 'react'
@@ -101,18 +102,32 @@ export function LoginPage() {
   }
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundImage: 'url(/background.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        bgcolor: '#1e3a5f',
+      }}
+    >
+      <Container maxWidth="sm">
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            width: '100%',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '16px',
+          }}
+        >
           <Typography variant="h4" component="h1" gutterBottom align="center">
-            Admin Login
+            管理员登录
           </Typography>
           <Typography
             variant="body2"
@@ -121,7 +136,7 @@ export function LoginPage() {
             align="center"
             sx={{ mb: 3 }}
           >
-            EchoOfSmartICE Management Panel
+            EchoOfSmartICE 管理后台
           </Typography>
 
           {error && (
@@ -132,7 +147,7 @@ export function LoginPage() {
 
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
-              label="Email"
+              label="邮箱"
               type="email"
               fullWidth
               required
@@ -145,7 +160,7 @@ export function LoginPage() {
             />
 
             <TextField
-              label="Password"
+              label="密码"
               type={showPassword ? 'text' : 'password'}
               fullWidth
               required
@@ -158,7 +173,7 @@ export function LoginPage() {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      aria-label="toggle password visibility"
+                      aria-label="切换密码可见性"
                       onClick={() => setShowPassword(!showPassword)}
                       edge="end"
                     >
@@ -177,7 +192,7 @@ export function LoginPage() {
               disabled={loading}
               sx={{ mt: 3 }}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? '登录中...' : '登录'}
             </Button>
 
             <Button
@@ -187,24 +202,25 @@ export function LoginPage() {
               disabled={loading}
               sx={{ mt: 1 }}
             >
-              Forgot Password?
+              忘记密码？
             </Button>
           </Box>
         </Paper>
-      </Box>
+      </Container>
+    </Box>
 
       {/* Forgot Password Dialog */}
       <Dialog open={showForgotPasswordDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Reset Password</DialogTitle>
+        <DialogTitle>重置密码</DialogTitle>
         <DialogContent>
           {resetSuccess ? (
             <Alert severity="success" sx={{ mt: 2 }}>
-              Password reset email sent! Please check your inbox and follow the instructions.
+              密码重置邮件已发送！请检查您的收件箱并按照说明操作。
             </Alert>
           ) : (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
-                Enter your email address and we'll send you a link to reset your password.
+                输入您的邮箱地址，我们将发送重置密码的链接给您。
               </Typography>
 
               {resetError && (
@@ -214,7 +230,7 @@ export function LoginPage() {
               )}
 
               <TextField
-                label="Email"
+                label="邮箱"
                 type="email"
                 fullWidth
                 required
@@ -233,23 +249,22 @@ export function LoginPage() {
         </DialogContent>
         <DialogActions>
           {resetSuccess ? (
-            <Button onClick={handleCloseDialog}>Close</Button>
+            <Button onClick={handleCloseDialog}>关闭</Button>
           ) : (
             <>
               <Button onClick={handleCloseDialog} disabled={sendingReset}>
-                Cancel
+                取消
               </Button>
               <Button
                 onClick={handleSendResetEmail}
                 variant="contained"
                 disabled={sendingReset}
               >
-                {sendingReset ? 'Sending...' : 'Send Reset Email'}
+                {sendingReset ? '发送中...' : '发送重置邮件'}
               </Button>
             </>
           )}
         </DialogActions>
       </Dialog>
-    </Container>
   )
 }

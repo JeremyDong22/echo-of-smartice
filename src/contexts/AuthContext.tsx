@@ -1,6 +1,7 @@
-// Version: 1.0.0
+// Version: 1.2.0
 // Authentication context provider
 // Manages global auth state and provides auth methods to components
+// v1.2.0: Cleaned up debug logging after successful password recovery implementation
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../services/supabase'

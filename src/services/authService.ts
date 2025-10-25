@@ -1,6 +1,7 @@
-// Version: 1.0.0
+// Version: 1.1.0
 // Authentication service for login, logout, and password management
 // Abstracts Supabase auth operations
+// v1.1.0: Fixed password reset redirect to point directly to /reset-password page
 
 import { supabase } from './supabase'
 import type { AuthError, Session, User } from '@supabase/supabase-js'
@@ -73,7 +74,7 @@ export async function sendPasswordResetEmail(
   redirectTo?: string
 ): Promise<{ error: AuthError | null }> {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: redirectTo || window.location.origin,
+    redirectTo: redirectTo || `${window.location.origin}/reset-password`,
   })
   return { error }
 }

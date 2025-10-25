@@ -1,8 +1,12 @@
-// Version: 1.0.0
+// Version: 1.4.0
 // Reset password page component
 // Handles password reset after user clicks email link
+// v1.4.0: Localized to Chinese and added background image for consistent design
+// v1.3.0: Cleaned up debug logging after successful password recovery implementation
+// v1.2.0: Added verbose console logging for debugging password recovery flow
+// v1.1.0: Added session verification and waiting logic for recovery token processing
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Button,
@@ -13,10 +17,12 @@ import {
   Alert,
   IconButton,
   InputAdornment,
+  CircularProgress,
 } from '@mui/material'
 import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { updatePassword } from '../../services/authService'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 
 export function ResetPasswordPage() {
   const [newPassword, setNewPassword] = useState('')
@@ -25,8 +31,37 @@ export function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
 
   const navigate = useNavigate()
+  const { session } = useAuth()
+
+  // Wait for Supabase to create session from recovery token
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+
+    // Check if session exists
+    if (session) {
+      setSessionReady(true)
+      setCheckingSession(false)
+      setError(null)
+    } else {
+      // Wait up to 10 seconds for session to be created from URL hash
+      timeoutId = setTimeout(() => {
+        if (!session) {
+          setCheckingSession(false)
+          setError(
+            'Auth session missing! The reset link may have expired or already been used. Please request a new password reset email.'
+          )
+        }
+      }, 10000)
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }, [session])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,12 +69,12 @@ export function ResetPasswordPage() {
 
     // Validation
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long')
+      setError('密码长度至少为 6 个字符')
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match')
+      setError('两次输入的密码不匹配')
       return
     }
 
@@ -58,25 +93,39 @@ export function ResetPasswordPage() {
         }, 2000)
       }
     } catch (err) {
-      setError('Failed to update password. Please try again.')
+      setError('密码更新失败，请重试')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundImage: 'url(/background.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        bgcolor: '#1e3a5f',
+      }}
+    >
+      <Container maxWidth="sm">
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            width: '100%',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '16px',
+          }}
+        >
           <Typography variant="h4" component="h1" gutterBottom align="center">
-            Reset Password
+            重置密码
           </Typography>
           <Typography
             variant="body2"
@@ -85,8 +134,18 @@ export function ResetPasswordPage() {
             align="center"
             sx={{ mb: 3 }}
           >
-            Enter your new password below
+            请在下方输入您的新密码
           </Typography>
+
+          {/* Show loading while checking for session */}
+          {checkingSession && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', my: 4 }}>
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography variant="body2" color="text.secondary">
+                正在验证重置链接...
+              </Typography>
+            </Box>
+          )}
 
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -96,14 +155,14 @@ export function ResetPasswordPage() {
 
           {success && (
             <Alert severity="success" sx={{ mb: 2 }}>
-              Password updated successfully! Redirecting to login...
+              密码更新成功！正在跳转到登录页面...
             </Alert>
           )}
 
-          {!success && (
+          {!success && !checkingSession && sessionReady && (
             <Box component="form" onSubmit={handleSubmit}>
               <TextField
-                label="New Password"
+                label="新密码"
                 type={showPassword ? 'text' : 'password'}
                 fullWidth
                 required
@@ -112,12 +171,12 @@ export function ResetPasswordPage() {
                 margin="normal"
                 autoFocus
                 disabled={loading}
-                helperText="Minimum 6 characters"
+                helperText="至少 6 个字符"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
-                        aria-label="toggle password visibility"
+                        aria-label="切换密码可见性"
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
                       >
@@ -129,7 +188,7 @@ export function ResetPasswordPage() {
               />
 
               <TextField
-                label="Confirm New Password"
+                label="确认新密码"
                 type={showPassword ? 'text' : 'password'}
                 fullWidth
                 required
@@ -147,12 +206,12 @@ export function ResetPasswordPage() {
                 disabled={loading}
                 sx={{ mt: 3 }}
               >
-                {loading ? 'Updating...' : 'Update Password'}
+                {loading ? '更新中...' : '更新密码'}
               </Button>
             </Box>
           )}
         </Paper>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   )
 }
