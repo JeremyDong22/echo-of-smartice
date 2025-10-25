@@ -49,7 +49,7 @@ function PasswordRecoveryListener() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event, _session) => {
       if (event === 'PASSWORD_RECOVERY') {
         // User clicked password reset link - redirect to reset password page
         navigate('/reset-password')
