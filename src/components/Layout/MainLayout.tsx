@@ -1,6 +1,6 @@
-// Version: 1.1.0
+// Version: 1.2.0
 // Main layout component with navigation bar for switching between admin pages
-// Updated with glassmorphism design: transparent navbar and semi-transparent content container
+// v1.2.0: Added logout button with auth context integration
 
 import { ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -12,7 +12,8 @@ import {
   Box,
   Container,
 } from '@mui/material'
-import { QrCode, EditNote } from '@mui/icons-material'
+import { QrCode, EditNote, Logout } from '@mui/icons-material'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface MainLayoutProps {
   children: ReactNode
@@ -21,9 +22,15 @@ interface MainLayoutProps {
 export default function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { signOut } = useAuth()
 
   const isQRCodePage = location.pathname === '/qrcode-management'
   const isQuestionnairePage = location.pathname === '/questionnaire-editor'
+
+  const handleLogout = async () => {
+    await signOut()
+    navigate('/login')
+  }
 
   return (
     <Box
@@ -99,6 +106,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
               }}
             >
               问卷编辑
+            </Button>
+            <Button
+              color="inherit"
+              startIcon={<Logout />}
+              onClick={handleLogout}
+              sx={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                background: 'transparent',
+                border: '1px solid transparent',
+                borderRadius: '8px',
+                '&:hover': {
+                  background: 'rgba(255, 100, 100, 0.3)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                },
+              }}
+            >
+              退出登录
             </Button>
           </Box>
         </Toolbar>

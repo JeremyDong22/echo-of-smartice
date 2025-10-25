@@ -28,7 +28,14 @@ This project maintains separate documentation files for different aspects of the
    - Supabase query patterns
    - Common anti-patterns to avoid
 
-4. **`business_logic.md`** (future)
+4. **`authentication.md`**
+   - **Use when**: Implementing or modifying authentication flows
+   - Supabase Auth integration and configuration
+   - Session management and protected routes
+   - Login/logout implementation
+   - Security best practices for admin access
+
+5. **`business_logic.md`** (future)
    - **Use when**: Understanding business rules and workflows
    - AB testing logic
    - User flows and permissions
@@ -46,8 +53,14 @@ EchoOfSmartICE is a React + TypeScript admin panel for managing a restaurant que
 - React 19 + TypeScript
 - Vite (dev server and build tool)
 - Material-UI (MUI) for UI components
-- Supabase for backend (PostgreSQL database)
+- Supabase for backend (PostgreSQL database + Authentication)
 - React Router for navigation
+
+**Authentication:**
+- Admin panel protected by Supabase Authentication
+- Single shared credential for all authorized staff
+- Customer questionnaire page (`/questionnaire.html`) remains public
+- See `authentication.md` for complete authentication architecture
 
 ## Development Commands
 
