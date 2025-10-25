@@ -102,112 +102,113 @@ export function LoginPage() {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundImage: 'url(/background.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-        bgcolor: '#1e3a5f',
-      }}
-    >
-      <Container maxWidth="sm">
-        <Paper
-          elevation={3}
-          sx={{
-            p: 4,
-            width: '100%',
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '16px',
-          }}
-        >
-          <Typography variant="h4" component="h1" gutterBottom align="center">
-            管理员登录
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            gutterBottom
-            align="center"
-            sx={{ mb: 3 }}
+    <>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundImage: 'url(/background.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+          bgcolor: '#1e3a5f',
+        }}
+      >
+        <Container maxWidth="sm">
+          <Paper
+            elevation={3}
+            sx={{
+              p: 4,
+              width: '100%',
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '16px',
+            }}
           >
-            EchoOfSmartICE 管理后台
-          </Typography>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              label="邮箱"
-              type="email"
-              fullWidth
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              margin="normal"
-              autoComplete="email"
-              autoFocus
-              disabled={loading}
-            />
-
-            <TextField
-              label="密码"
-              type={showPassword ? 'text' : 'password'}
-              fullWidth
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              margin="normal"
-              autoComplete="current-password"
-              disabled={loading}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="切换密码可见性"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={loading}
-              sx={{ mt: 3 }}
+            <Typography variant="h4" component="h1" gutterBottom align="center">
+              管理员登录
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              gutterBottom
+              align="center"
+              sx={{ mb: 3 }}
             >
-              {loading ? '登录中...' : '登录'}
-            </Button>
+              EchoOfSmartICE 管理后台
+            </Typography>
 
-            <Button
-              fullWidth
-              variant="text"
-              onClick={handleForgotPassword}
-              disabled={loading}
-              sx={{ mt: 1 }}
-            >
-              忘记密码？
-            </Button>
-          </Box>
-        </Paper>
-      </Container>
-    </Box>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <Box component="form" onSubmit={handleSubmit}>
+              <TextField
+                label="邮箱"
+                type="email"
+                fullWidth
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                margin="normal"
+                autoComplete="email"
+                autoFocus
+                disabled={loading}
+              />
+
+              <TextField
+                label="密码"
+                type={showPassword ? 'text' : 'password'}
+                fullWidth
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                margin="normal"
+                autoComplete="current-password"
+                disabled={loading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="切换密码可见性"
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{ mt: 3 }}
+              >
+                {loading ? '登录中...' : '登录'}
+              </Button>
+
+              <Button
+                fullWidth
+                variant="text"
+                onClick={handleForgotPassword}
+                disabled={loading}
+                sx={{ mt: 1 }}
+              >
+                忘记密码？
+              </Button>
+            </Box>
+          </Paper>
+        </Container>
+      </Box>
 
       {/* Forgot Password Dialog */}
       <Dialog open={showForgotPasswordDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
@@ -266,5 +267,6 @@ export function LoginPage() {
           )}
         </DialogActions>
       </Dialog>
+    </>
   )
 }
